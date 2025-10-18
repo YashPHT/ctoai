@@ -29,12 +29,16 @@ class SmartMentorChatbot {
             "Progress, not perfection! 👏"
         ];
         
+        this.boundHandleViewportChange = this.handleViewportChange.bind(this);
+        this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
+        
         this.init();
     }
     
     init() {
         this.cacheElements();
         this.attachEventListeners();
+        this.handleViewportChange();
         this.loadFromStorage();
         this.displayWelcomeMessage();
         this.updateMotivationalMessage();
@@ -45,6 +49,8 @@ class SmartMentorChatbot {
     cacheElements() {
         this.elements = {
             chatbotTrigger: document.getElementById('chatbot-trigger'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarToggle: document.getElementById('sidebar-toggle'),
             chatbotModal: document.getElementById('chatbot-modal'),
             chatbotOverlay: document.getElementById('chatbot-overlay'),
             closeChatbot: document.getElementById('close-chatbot'),
@@ -102,6 +108,21 @@ class SmartMentorChatbot {
         if (this.elements.chatbotTrigger) {
             this.elements.chatbotTrigger.addEventListener('click', () => this.openChatbot());
         }
+        if (this.elements.sidebarToggle) {
+            this.elements.sidebarToggle.addEventListener('click', () => this.toggleSidebarVisibility());
+        }
+        if (this.elements.sidebar) {
+            const sidebarLinks = this.elements.sidebar.querySelectorAll('.sidebar__nav-link');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (this.isMobile()) {
+                        this.closeSidebar();
+                    }
+                });
+            });
+        }
+        window.addEventListener('resize', this.boundHandleViewportChange);
+        document.addEventListener('click', this.boundHandleDocumentClick);
         if (this.elements.closeChatbot) {
             this.elements.closeChatbot.addEventListener('click', () => this.closeChatbot());
         }
@@ -192,6 +213,8 @@ class SmartMentorChatbot {
                     this.closeModal();
                 } else if (this.conversationState.isOpen) {
                     this.closeChatbot();
+                } else if (this.isSidebarOpen()) {
+                    this.closeSidebar();
                 }
             }
         });
@@ -821,6 +844,76 @@ class SmartMentorChatbot {
         
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
+    }
+
+    toggleSidebarVisibility() {
+        if (!this.elements.sidebarToggle) return;
+        if (!this.isTabletOrSmaller()) return;
+        const shouldOpen = !this.isSidebarOpen();
+        if (shouldOpen) {
+            this.openSidebar();
+        } else {
+            this.closeSidebar();
+        }
+    }
+
+    openSidebar() {
+        document.body.classList.add('sidebar-open');
+        if (this.elements.sidebarToggle) {
+            this.elements.sidebarToggle.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    closeSidebar() {
+        document.body.classList.remove('sidebar-open');
+        if (this.elements.sidebarToggle) {
+            this.elements.sidebarToggle.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    isSidebarOpen() {
+        return document.body.classList.contains('sidebar-open');
+    }
+
+    isMobile() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    isTabletOrSmaller() {
+        return window.matchMedia('(max-width: 1024px)').matches;
+    }
+
+    handleViewportChange() {
+        if (!this.elements.sidebarToggle) {
+            return;
+        }
+
+        if (!this.isTabletOrSmaller()) {
+            document.body.classList.remove('sidebar-open');
+            this.elements.sidebarToggle.setAttribute('aria-expanded', 'true');
+            return;
+        }
+
+        const isOpen = this.isSidebarOpen();
+        if (this.isMobile()) {
+            if (!isOpen) {
+                this.elements.sidebarToggle.setAttribute('aria-expanded', 'false');
+            }
+        } else {
+            this.elements.sidebarToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+    }
+
+    handleDocumentClick(event) {
+        if (!this.isSidebarOpen() || !this.isMobile()) {
+            return;
+        }
+
+        const sidebar = this.elements.sidebar;
+        const toggle = this.elements.sidebarToggle;
+        if (sidebar && !sidebar.contains(event.target) && toggle && !toggle.contains(event.target)) {
+            this.closeSidebar();
+        }
     }
     
     scrollToBottom() {
