@@ -86,6 +86,11 @@ All components follow strict BEM methodology:
 - **Item IDs**: `data-assignment-id`, `data-task-id`, `data-event-id`
 - **Status Tracking**: `data-priority`, `data-task-status`
 
+### ⚙️ Compatibility & Accessibility Enhancements
+- Restored all legacy IDs and data hooks required by the existing `script.js`
+- Reintroduced chatbot overlays and task management modals with glass styling
+- Added quick actions, empty states, and aria attributes aligned with past behaviour
+
 ### ✅ Preserved Original Features
 - **Chatbot Modal**: Maintained with updated BEM naming (`chatbot-modal__*`)
 - **Task Form Modal**: Preserved with BEM updates (`modal__*`)
