@@ -8,348 +8,794 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Dashboard Header -->
-        <header class="dashboard-header">
-            <div class="header-content">
-                <div class="brand">
-                    <h1>Smart Academic Mentor</h1>
-                    <p class="subtitle">Your AI-powered study companion</p>
+        <!-- Glass Sidebar -->
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+            <div class="sidebar__header">
+                <div class="sidebar__brand">
+                    <svg class="sidebar__brand-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                    <h1 class="sidebar__brand-title">Smart Mentor</h1>
                 </div>
-                <div class="header-actions">
-                    <button 
-                        id="theme-toggle" 
-                        class="icon-button" 
-                        aria-label="Toggle dark mode"
-                        title="Toggle dark mode">
-                        <svg class="theme-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="5"></circle>
-                            <line x1="12" y1="1" x2="12" y2="3"></line>
-                            <line x1="12" y1="21" x2="12" y2="23"></line>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                            <line x1="1" y1="12" x2="3" y2="12"></line>
-                            <line x1="21" y1="12" x2="23" y2="12"></line>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                        </svg>
-                    </button>
-                    <button 
-                        id="chatbot-trigger" 
-                        class="chatbot-trigger-button"
-                        aria-label="Open Smart Mentor chatbot"
-                        title="Chat with your AI mentor">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <span>Chat</span>
-                        <span class="notification-badge" id="chat-notification" aria-label="Unread messages"></span>
-                    </button>
-                </div>
+                <button 
+                    class="sidebar__toggle" 
+                    id="sidebarToggle"
+                    aria-label="Toggle sidebar"
+                    aria-expanded="true"
+                    aria-controls="sidebar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
             </div>
-        </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="dashboard-container">
-                <!-- Welcome Section -->
-                <section class="welcome-section">
-                    <h2>Welcome back!</h2>
-                    <p class="motivational-message" id="motivational-message">Let's make today productive! 🎯</p>
-                </section>
-
-                <!-- Priority Tasks Section -->
-                <section class="priority-tasks-section">
-                    <div class="section-header">
-                        <h3>🎯 Priority Tasks</h3>
-                        <button id="add-task" class="primary-button" aria-label="Add new task">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
+            <nav class="sidebar__nav">
+                <ul class="sidebar__nav-list" role="list">
+                    <li class="sidebar__nav-item">
+                        <a href="#" class="sidebar__nav-link sidebar__nav-link--active" data-nav="dashboard" aria-current="page">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
                             </svg>
-                            <span>Add Task</span>
-                        </button>
-                    </div>
-                    <div id="priority-task-list" class="priority-task-list">
-                        <!-- Priority tasks will be rendered here -->
-                    </div>
-                </section>
-
-                <!-- All Tasks Section -->
-                <section class="task-section">
-                    <div class="section-header">
-                        <h3>All Tasks</h3>
-                        <button id="refresh-tasks" class="secondary-button" aria-label="Refresh task list">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="23 4 23 10 17 10"></polyline>
-                                <polyline points="1 20 1 14 7 14"></polyline>
-                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="sidebar__nav-item">
+                        <a href="#" class="sidebar__nav-link" data-nav="assignments">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
                             </svg>
-                            <span>Refresh</span>
-                        </button>
-                    </div>
-                    <div id="task-list" class="task-list">
-                        <div class="empty-state">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M9 11l3 3L22 4"></path>
-                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                            </svg>
-                            <h4>No tasks yet</h4>
-                            <p>Chat with your AI mentor to create personalized study tasks!</p>
-                            <button class="primary-button" id="start-chat-empty">Start Chatting</button>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </main>
-
-        <!-- Chatbot Modal/Sidebar -->
-        <div id="chatbot-modal" class="chatbot-modal" role="dialog" aria-labelledby="chatbot-title" aria-modal="true" hidden>
-            <div class="chatbot-container">
-                <!-- Chatbot Header -->
-                <div class="chatbot-header">
-                    <div class="chatbot-title-section">
-                        <div class="mentor-avatar">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h2 id="chatbot-title">Smart Mentor</h2>
-                            <span class="chatbot-status">Online</span>
-                        </div>
-                    </div>
-                    <button 
-                        id="close-chatbot" 
-                        class="close-button"
-                        aria-label="Close chatbot">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Chatbot Messages -->
-                <div id="chatbot-messages" class="chatbot-messages" role="log" aria-live="polite" aria-atomic="false">
-                    <!-- Messages will be dynamically added here -->
-                </div>
-
-                <!-- Chatbot Input -->
-                <div class="chatbot-input-container">
-                    <div class="quick-actions" id="quick-actions">
-                        <button class="quick-action-button" data-action="create-task">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            Create Task
-                        </button>
-                        <button class="quick-action-button" data-action="study-plan">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <span>Assignments</span>
+                        </a>
+                    </li>
+                    <li class="sidebar__nav-item">
+                        <a href="#" class="sidebar__nav-link" data-nav="timetable">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="16" y1="2" x2="16" y2="6"></line>
                                 <line x1="8" y1="2" x2="8" y2="6"></line>
                                 <line x1="3" y1="10" x2="21" y2="10"></line>
                             </svg>
-                            Study Plan
-                        </button>
-                        <button class="quick-action-button" data-action="help">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            <span>Timetable</span>
+                        </a>
+                    </li>
+                    <li class="sidebar__nav-item">
+                        <a href="#" class="sidebar__nav-link" data-nav="progress">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
                             </svg>
-                            Help
-                        </button>
+                            <span>Progress</span>
+                        </a>
+                    </li>
+                    <li class="sidebar__nav-item">
+                        <a href="#" class="sidebar__nav-link" data-nav="calendar">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                                <rect x="7" y="14" width="3" height="3"></rect>
+                            </svg>
+                            <span>Calendar</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar__footer">
+                <button 
+                    class="sidebar__action-button" 
+                    id="chatbotTrigger"
+                    aria-label="Open AI mentor chat">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>AI Mentor</span>
+                    <span class="sidebar__notification-badge" id="chatNotification" aria-label="Unread messages"></span>
+                </button>
+                
+                <div class="sidebar__user">
+                    <div class="sidebar__user-avatar" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
                     </div>
-                    <form id="chatbot-form" class="chatbot-input-form">
-                        <textarea 
-                            id="chatbot-input" 
-                            class="chatbot-input"
-                            placeholder="Type your message..."
-                            rows="1"
-                            aria-label="Chat message input"
-                            autocomplete="off"></textarea>
-                        <button 
-                            type="submit" 
-                            id="send-button"
-                            class="send-button"
-                            aria-label="Send message"
-                            disabled>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
-                        </button>
-                    </form>
+                    <div class="sidebar__user-info">
+                        <span class="sidebar__user-name">Student</span>
+                        <span class="sidebar__user-role">Active</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </aside>
 
-        <!-- Overlay -->
-        <div id="chatbot-overlay" class="chatbot-overlay" hidden></div>
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Dashboard Header -->
+            <header class="dashboard-header" role="banner">
+                <div class="dashboard-header__content">
+                    <div class="dashboard-header__title-section">
+                        <h1 class="dashboard-header__title">Dashboard</h1>
+                        <p class="dashboard-header__subtitle" id="motivationalMessage">Welcome back! Let's make today productive 🎯</p>
+                    </div>
+                    
+                    <div class="dashboard-header__actions">
+                        <button 
+                            class="dashboard-header__action-button" 
+                            id="addTaskButton"
+                            aria-label="Add new task">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>Add Task</span>
+                        </button>
+                        
+                        <button 
+                            class="dashboard-header__icon-button" 
+                            id="themeToggle"
+                            aria-label="Toggle dark mode"
+                            title="Toggle dark mode">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <circle cx="12" cy="12" r="5"></circle>
+                                <line x1="12" y1="1" x2="12" y2="3"></line>
+                                <line x1="12" y1="21" x2="12" y2="23"></line>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                <line x1="1" y1="12" x2="3" y2="12"></line>
+                                <line x1="21" y1="12" x2="23" y2="12"></line>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                            </svg>
+                        </button>
+                        
+                        <button 
+                            class="dashboard-header__icon-button" 
+                            id="notificationsButton"
+                            aria-label="View notifications"
+                            title="Notifications">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span class="dashboard-header__notification-dot" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Dashboard Content -->
+            <main class="dashboard-content" role="main">
+                <div class="dashboard-grid">
+                    
+                    <!-- Assignment Tracker Section -->
+                    <section 
+                        class="dashboard-card dashboard-card--assignments" 
+                        id="assignmentTracker"
+                        aria-labelledby="assignmentTrackerTitle"
+                        data-component="assignment-tracker">
+                        <div class="dashboard-card__header">
+                            <div class="dashboard-card__title-group">
+                                <h2 class="dashboard-card__title" id="assignmentTrackerTitle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M9 11l3 3L22 4"></path>
+                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                                    </svg>
+                                    Assignment Tracker
+                                </h2>
+                                <span class="dashboard-card__badge" data-count="assignments">5 Active</span>
+                            </div>
+                            <button 
+                                class="dashboard-card__action-button" 
+                                data-action="filter-assignments"
+                                aria-label="Filter assignments">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="dashboard-card__content">
+                            <div class="assignment-list" role="list" data-assignments-container>
+                                <div class="assignment-item" role="listitem" data-assignment-id="1" data-priority="high">
+                                    <div class="assignment-item__checkbox">
+                                        <input 
+                                            type="checkbox" 
+                                            id="assignment-1" 
+                                            class="assignment-item__checkbox-input"
+                                            data-assignment-checkbox>
+                                        <label for="assignment-1" class="assignment-item__checkbox-label" aria-label="Mark assignment complete"></label>
+                                    </div>
+                                    <div class="assignment-item__content">
+                                        <h3 class="assignment-item__title">Calculus Problem Set</h3>
+                                        <p class="assignment-item__meta">
+                                            <span class="assignment-item__subject" data-subject>Mathematics</span>
+                                            <span class="assignment-item__separator">•</span>
+                                            <span class="assignment-item__due-date" data-due-date>Due in 2 days</span>
+                                        </p>
+                                    </div>
+                                    <span class="assignment-item__priority assignment-item__priority--high" data-priority-indicator>High</span>
+                                </div>
+                                
+                                <div class="assignment-item" role="listitem" data-assignment-id="2" data-priority="medium">
+                                    <div class="assignment-item__checkbox">
+                                        <input 
+                                            type="checkbox" 
+                                            id="assignment-2" 
+                                            class="assignment-item__checkbox-input"
+                                            data-assignment-checkbox>
+                                        <label for="assignment-2" class="assignment-item__checkbox-label" aria-label="Mark assignment complete"></label>
+                                    </div>
+                                    <div class="assignment-item__content">
+                                        <h3 class="assignment-item__title">Chemistry Lab Report</h3>
+                                        <p class="assignment-item__meta">
+                                            <span class="assignment-item__subject" data-subject>Chemistry</span>
+                                            <span class="assignment-item__separator">•</span>
+                                            <span class="assignment-item__due-date" data-due-date>Due in 4 days</span>
+                                        </p>
+                                    </div>
+                                    <span class="assignment-item__priority assignment-item__priority--medium" data-priority-indicator>Medium</span>
+                                </div>
+                                
+                                <div class="assignment-item" role="listitem" data-assignment-id="3" data-priority="low">
+                                    <div class="assignment-item__checkbox">
+                                        <input 
+                                            type="checkbox" 
+                                            id="assignment-3" 
+                                            class="assignment-item__checkbox-input"
+                                            data-assignment-checkbox>
+                                        <label for="assignment-3" class="assignment-item__checkbox-label" aria-label="Mark assignment complete"></label>
+                                    </div>
+                                    <div class="assignment-item__content">
+                                        <h3 class="assignment-item__title">History Reading Chapter 5</h3>
+                                        <p class="assignment-item__meta">
+                                            <span class="assignment-item__subject" data-subject>History</span>
+                                            <span class="assignment-item__separator">•</span>
+                                            <span class="assignment-item__due-date" data-due-date>Due in 1 week</span>
+                                        </p>
+                                    </div>
+                                    <span class="assignment-item__priority assignment-item__priority--low" data-priority-indicator>Low</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Time Spent Chart Section -->
+                    <section 
+                        class="dashboard-card dashboard-card--time-chart" 
+                        id="timeSpentChart"
+                        aria-labelledby="timeSpentChartTitle"
+                        data-component="time-chart">
+                        <div class="dashboard-card__header">
+                            <div class="dashboard-card__title-group">
+                                <h2 class="dashboard-card__title" id="timeSpentChartTitle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polyline points="12 6 12 12 16 14"></polyline>
+                                    </svg>
+                                    Time Spent Today
+                                </h2>
+                                <span class="dashboard-card__badge" data-total-time>4.5 hrs</span>
+                            </div>
+                            <button 
+                                class="dashboard-card__action-button" 
+                                data-action="view-time-details"
+                                aria-label="View time details">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="dashboard-card__content">
+                            <div class="time-chart" data-chart-container>
+                                <canvas 
+                                    id="timeChartCanvas" 
+                                    class="time-chart__canvas"
+                                    data-chart="time-spent"
+                                    role="img"
+                                    aria-label="Bar chart showing time spent on different subjects"></canvas>
+                            </div>
+                            
+                            <div class="time-stats" role="list">
+                                <div class="time-stats__item" role="listitem" data-stat-item="mathematics">
+                                    <div class="time-stats__color" style="background-color: #4F46E5;" aria-hidden="true"></div>
+                                    <span class="time-stats__label">Mathematics</span>
+                                    <span class="time-stats__value" data-stat-value>2.5 hrs</span>
+                                </div>
+                                <div class="time-stats__item" role="listitem" data-stat-item="chemistry">
+                                    <div class="time-stats__color" style="background-color: #10B981;" aria-hidden="true"></div>
+                                    <span class="time-stats__label">Chemistry</span>
+                                    <span class="time-stats__value" data-stat-value>1.5 hrs</span>
+                                </div>
+                                <div class="time-stats__item" role="listitem" data-stat-item="history">
+                                    <div class="time-stats__color" style="background-color: #F59E0B;" aria-hidden="true"></div>
+                                    <span class="time-stats__label">History</span>
+                                    <span class="time-stats__value" data-stat-value>0.5 hrs</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- Progress Graph Section -->
+                    <section 
+                        class="dashboard-card dashboard-card--progress" 
+                        id="progressGraph"
+                        aria-labelledby="progressGraphTitle"
+                        data-component="progress-graph">
+                        <div class="dashboard-card__header">
+                            <div class="dashboard-card__title-group">
+                                <h2 class="dashboard-card__title" id="progressGraphTitle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                    </svg>
+                                    Progress Overview
+                                </h2>
+                            </div>
+                            
+                            <div class="progress-view-toggle" role="group" aria-label="Progress view options">
+                                <button 
+                                    class="progress-view-toggle__button progress-view-toggle__button--active" 
+                                    data-view="weekly"
+                                    aria-pressed="true">
+                                    Weekly
+                                </button>
+                                <button 
+                                    class="progress-view-toggle__button" 
+                                    data-view="monthly"
+                                    aria-pressed="false">
+                                    Monthly
+                                </button>
+                                <button 
+                                    class="progress-view-toggle__button" 
+                                    data-view="yearly"
+                                    aria-pressed="false">
+                                    Yearly
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="dashboard-card__content">
+                            <div class="progress-graph" data-graph-container>
+                                <canvas 
+                                    id="progressGraphCanvas" 
+                                    class="progress-graph__canvas"
+                                    data-chart="progress"
+                                    role="img"
+                                    aria-label="Line graph showing weekly progress across subjects"></canvas>
+                            </div>
+                            
+                            <div class="progress-summary">
+                                <div class="progress-summary__item" data-summary="completed">
+                                    <span class="progress-summary__value">12</span>
+                                    <span class="progress-summary__label">Completed</span>
+                                </div>
+                                <div class="progress-summary__item" data-summary="in-progress">
+                                    <span class="progress-summary__value">5</span>
+                                    <span class="progress-summary__label">In Progress</span>
+                                </div>
+                                <div class="progress-summary__item" data-summary="average-score">
+                                    <span class="progress-summary__value">87%</span>
+                                    <span class="progress-summary__label">Avg Score</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Calendar Section -->
+                    <section 
+                        class="dashboard-card dashboard-card--calendar" 
+                        id="calendarSection"
+                        aria-labelledby="calendarTitle"
+                        data-component="calendar">
+                        <div class="dashboard-card__header">
+                            <div class="dashboard-card__title-group">
+                                <h2 class="dashboard-card__title" id="calendarTitle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    Calendar
+                                </h2>
+                                <span class="dashboard-card__badge" data-current-month>October 2024</span>
+                            </div>
+                            <div class="calendar-nav">
+                                <button 
+                                    class="calendar-nav__button" 
+                                    data-calendar-nav="prev"
+                                    aria-label="Previous month">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </button>
+                                <button 
+                                    class="calendar-nav__button" 
+                                    data-calendar-nav="next"
+                                    aria-label="Next month">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="dashboard-card__content">
+                            <div class="calendar" data-calendar-container>
+                                <div class="calendar__weekdays" role="row">
+                                    <div class="calendar__weekday" role="columnheader">Sun</div>
+                                    <div class="calendar__weekday" role="columnheader">Mon</div>
+                                    <div class="calendar__weekday" role="columnheader">Tue</div>
+                                    <div class="calendar__weekday" role="columnheader">Wed</div>
+                                    <div class="calendar__weekday" role="columnheader">Thu</div>
+                                    <div class="calendar__weekday" role="columnheader">Fri</div>
+                                    <div class="calendar__weekday" role="columnheader">Sat</div>
+                                </div>
+                                <div class="calendar__days" role="grid" data-calendar-days>
+                                    <!-- Calendar days will be dynamically generated -->
+                                </div>
+                            </div>
+                            
+                            <div class="calendar-events" data-calendar-events>
+                                <h3 class="calendar-events__title">Upcoming Events</h3>
+                                <div class="calendar-events__list" role="list">
+                                    <div class="calendar-event" role="listitem" data-event-id="1">
+                                        <div class="calendar-event__marker" style="background-color: #4F46E5;" aria-hidden="true"></div>
+                                        <div class="calendar-event__content">
+                                            <span class="calendar-event__title">Math Exam</span>
+                                            <span class="calendar-event__date">Oct 22, 9:00 AM</span>
+                                        </div>
+                                    </div>
+                                    <div class="calendar-event" role="listitem" data-event-id="2">
+                                        <div class="calendar-event__marker" style="background-color: #10B981;" aria-hidden="true"></div>
+                                        <div class="calendar-event__content">
+                                            <span class="calendar-event__title">Chemistry Lab</span>
+                                            <span class="calendar-event__date">Oct 24, 2:00 PM</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Timetable Section -->
+                    <section 
+                        class="dashboard-card dashboard-card--timetable" 
+                        id="timetableSection"
+                        aria-labelledby="timetableTitle"
+                        data-component="timetable">
+                        <div class="dashboard-card__header">
+                            <div class="dashboard-card__title-group">
+                                <h2 class="dashboard-card__title" id="timetableTitle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="9" y1="3" x2="9" y2="21"></line>
+                                    </svg>
+                                    Weekly Timetable
+                                </h2>
+                                <span class="dashboard-card__badge" data-current-day>Today: Wednesday</span>
+                            </div>
+                            <button 
+                                class="dashboard-card__action-button" 
+                                data-action="edit-timetable"
+                                aria-label="Edit timetable">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="dashboard-card__content">
+                            <div class="timetable" data-timetable-container>
+                                <div class="timetable__schedule" role="table" aria-label="Weekly class schedule">
+                                    <div class="timetable__row" role="row">
+                                        <div class="timetable__time" role="rowheader">9:00 AM</div>
+                                        <div class="timetable__slot timetable__slot--active" role="cell" data-slot="mathematics" data-day="monday">
+                                            <span class="timetable__slot-title">Mathematics</span>
+                                            <span class="timetable__slot-room">Room 101</span>
+                                        </div>
+                                    </div>
+                                    <div class="timetable__row" role="row">
+                                        <div class="timetable__time" role="rowheader">10:30 AM</div>
+                                        <div class="timetable__slot" role="cell" data-slot="chemistry" data-day="monday">
+                                            <span class="timetable__slot-title">Chemistry</span>
+                                            <span class="timetable__slot-room">Lab B</span>
+                                        </div>
+                                    </div>
+                                    <div class="timetable__row" role="row">
+                                        <div class="timetable__time" role="rowheader">12:00 PM</div>
+                                        <div class="timetable__slot timetable__slot--break" role="cell">
+                                            <span class="timetable__slot-title">Lunch Break</span>
+                                        </div>
+                                    </div>
+                                    <div class="timetable__row" role="row">
+                                        <div class="timetable__time" role="rowheader">1:30 PM</div>
+                                        <div class="timetable__slot" role="cell" data-slot="history" data-day="monday">
+                                            <span class="timetable__slot-title">History</span>
+                                            <span class="timetable__slot-room">Room 204</span>
+                                        </div>
+                                    </div>
+                                    <div class="timetable__row" role="row">
+                                        <div class="timetable__time" role="rowheader">3:00 PM</div>
+                                        <div class="timetable__slot" role="cell" data-slot="physics" data-day="monday">
+                                            <span class="timetable__slot-title">Physics</span>
+                                            <span class="timetable__slot-room">Lab A</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Task List Section -->
+                    <section 
+                        class="dashboard-card dashboard-card--tasks" 
+                        id="taskListSection"
+                        aria-labelledby="taskListTitle"
+                        data-component="task-list">
+                        <div class="dashboard-card__header">
+                            <div class="dashboard-card__title-group">
+                                <h2 class="dashboard-card__title" id="taskListTitle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                    </svg>
+                                    Assigned Tasks
+                                </h2>
+                                <span class="dashboard-card__badge" data-task-count>8 Tasks</span>
+                            </div>
+                            <button 
+                                class="dashboard-card__action-button" 
+                                data-action="refresh-tasks"
+                                aria-label="Refresh task list">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <polyline points="23 4 23 10 17 10"></polyline>
+                                    <polyline points="1 20 1 14 7 14"></polyline>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="dashboard-card__content">
+                            <div class="task-filters" role="group" aria-label="Task filters">
+                                <button 
+                                    class="task-filter task-filter--active" 
+                                    data-filter="all"
+                                    aria-pressed="true">
+                                    All
+                                </button>
+                                <button 
+                                    class="task-filter" 
+                                    data-filter="pending"
+                                    aria-pressed="false">
+                                    Pending
+                                </button>
+                                <button 
+                                    class="task-filter" 
+                                    data-filter="completed"
+                                    aria-pressed="false">
+                                    Completed
+                                </button>
+                            </div>
+                            
+                            <div class="task-list" role="list" data-task-list-container>
+                                <article class="task-card" role="listitem" data-task-id="task-1" data-task-status="pending">
+                                    <div class="task-card__header">
+                                        <div class="task-card__checkbox">
+                                            <input 
+                                                type="checkbox" 
+                                                id="task-1" 
+                                                class="task-card__checkbox-input"
+                                                data-task-checkbox>
+                                            <label for="task-1" class="task-card__checkbox-label" aria-label="Mark task complete"></label>
+                                        </div>
+                                        <h3 class="task-card__title">Complete Chapter 5 Review</h3>
+                                        <button 
+                                            class="task-card__menu-button" 
+                                            data-task-menu="task-1"
+                                            aria-label="Task options"
+                                            aria-haspopup="true">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <circle cx="12" cy="12" r="1"></circle>
+                                                <circle cx="19" cy="12" r="1"></circle>
+                                                <circle cx="5" cy="12" r="1"></circle>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <p class="task-card__description">Review all concepts from Chapter 5 and complete practice problems</p>
+                                    <div class="task-card__meta">
+                                        <span class="task-card__tag" data-tag="subject">Mathematics</span>
+                                        <span class="task-card__due-date" data-due-date>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                            </svg>
+                                            Due in 2 days
+                                        </span>
+                                    </div>
+                                    <div class="task-card__progress">
+                                        <div class="task-card__progress-bar">
+                                            <div class="task-card__progress-fill" style="width: 45%;" data-progress-fill></div>
+                                        </div>
+                                        <span class="task-card__progress-text" data-progress-text>45%</span>
+                                    </div>
+                                </article>
+                                
+                                <article class="task-card" role="listitem" data-task-id="task-2" data-task-status="pending">
+                                    <div class="task-card__header">
+                                        <div class="task-card__checkbox">
+                                            <input 
+                                                type="checkbox" 
+                                                id="task-2" 
+                                                class="task-card__checkbox-input"
+                                                data-task-checkbox>
+                                            <label for="task-2" class="task-card__checkbox-label" aria-label="Mark task complete"></label>
+                                        </div>
+                                        <h3 class="task-card__title">Lab Report - Chemical Reactions</h3>
+                                        <button 
+                                            class="task-card__menu-button" 
+                                            data-task-menu="task-2"
+                                            aria-label="Task options"
+                                            aria-haspopup="true">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <circle cx="12" cy="12" r="1"></circle>
+                                                <circle cx="19" cy="12" r="1"></circle>
+                                                <circle cx="5" cy="12" r="1"></circle>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <p class="task-card__description">Write comprehensive lab report on chemical reactions experiment</p>
+                                    <div class="task-card__meta">
+                                        <span class="task-card__tag" data-tag="subject">Chemistry</span>
+                                        <span class="task-card__due-date" data-due-date>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                            </svg>
+                                            Due in 4 days
+                                        </span>
+                                    </div>
+                                    <div class="task-card__progress">
+                                        <div class="task-card__progress-bar">
+                                            <div class="task-card__progress-fill" style="width: 20%;" data-progress-fill></div>
+                                        </div>
+                                        <span class="task-card__progress-text" data-progress-text>20%</span>
+                                    </div>
+                                </article>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+        </div>
     </div>
 
-    <!-- Task Management Modals -->
-    <div id="task-modal-overlay" class="modal-overlay" hidden></div>
-
-    <div id="task-form-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="task-form-title" hidden>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="task-form-title">Add Task</h2>
-                <button type="button" class="icon-button modal-close" data-close-modal="task-form-modal" aria-label="Close task form">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Chatbot Modal (Preserved from original) -->
+    <div id="chatbotModal" class="chatbot-modal" role="dialog" aria-labelledby="chatbotModalTitle" aria-modal="true" hidden>
+        <div class="chatbot-modal__container">
+            <div class="chatbot-modal__header">
+                <div class="chatbot-modal__title-section">
+                    <div class="chatbot-modal__avatar">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 id="chatbotModalTitle">Smart Mentor</h2>
+                        <span class="chatbot-modal__status">Online</span>
+                    </div>
+                </div>
+                <button 
+                    class="chatbot-modal__close-button" 
+                    id="closeChatbot"
+                    aria-label="Close chatbot">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
                 </button>
             </div>
-            <form id="task-form" class="modal-form">
-                <input type="hidden" id="task-form-id">
+            
+            <div class="chatbot-modal__messages" id="chatbotMessages" role="log" aria-live="polite" aria-atomic="false">
+                <!-- Messages will be dynamically added -->
+            </div>
+            
+            <div class="chatbot-modal__input-container">
+                <form id="chatbotForm" class="chatbot-modal__form">
+                    <textarea 
+                        id="chatbotInput" 
+                        class="chatbot-modal__input"
+                        placeholder="Type your message..."
+                        rows="1"
+                        aria-label="Chat message input"
+                        autocomplete="off"></textarea>
+                    <button 
+                        type="submit" 
+                        class="chatbot-modal__send-button"
+                        id="sendButton"
+                        aria-label="Send message"
+                        disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" class="modal-overlay" hidden></div>
+
+    <!-- Task Form Modal (Preserved from original) -->
+    <div id="taskFormModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="taskFormTitle" hidden>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 id="taskFormTitle">Add Task</h2>
+                <button type="button" class="modal__close-button" data-close-modal="taskFormModal" aria-label="Close task form">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="taskForm" class="modal__form">
+                <input type="hidden" id="taskFormId">
                 <div class="form-group">
-                    <label for="task-form-title-input">Title</label>
-                    <input id="task-form-title-input" name="title" type="text" required placeholder="Enter task title">
+                    <label for="taskFormTitle">Title</label>
+                    <input id="taskFormTitle" name="title" type="text" required placeholder="Enter task title">
                 </div>
                 <div class="form-group">
-                    <label for="task-form-description">Description</label>
-                    <textarea id="task-form-description" name="description" rows="3" placeholder="Add details or requirements"></textarea>
+                    <label for="taskFormDescription">Description</label>
+                    <textarea id="taskFormDescription" name="description" rows="3" placeholder="Add details or requirements"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="task-form-subject">Subject</label>
-                        <input id="task-form-subject" name="subject" type="text" placeholder="e.g., Calculus">
+                        <label for="taskFormSubject">Subject</label>
+                        <input id="taskFormSubject" name="subject" type="text" placeholder="e.g., Calculus">
                     </div>
                     <div class="form-group">
-                        <label for="task-form-due-date">Due Date</label>
-                        <input id="task-form-due-date" name="dueDate" type="date">
+                        <label for="taskFormDueDate">Due Date</label>
+                        <input id="taskFormDueDate" name="dueDate" type="date">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="task-form-priority">Priority</label>
-                        <select id="task-form-priority" name="priority" required>
+                        <label for="taskFormPriority">Priority</label>
+                        <select id="taskFormPriority" name="priority" required>
                             <option value="high">High</option>
-                            <option value="medium">Medium</option>
+                            <option value="medium" selected>Medium</option>
                             <option value="low">Low</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="task-form-progress">Progress</label>
+                        <label for="taskFormProgress">Progress</label>
                         <div class="progress-input">
-                            <input id="task-form-progress" name="progress" type="range" min="0" max="100" step="5" value="0">
-                            <span id="task-form-progress-value">0%</span>
+                            <input id="taskFormProgress" name="progress" type="range" min="0" max="100" step="5" value="0">
+                            <span id="taskFormProgressValue">0%</span>
                         </div>
                     </div>
                 </div>
-                <div class="modal-actions">
-                    <button type="button" class="secondary-button" data-close-modal="task-form-modal">Cancel</button>
-                    <button type="submit" class="primary-button" id="task-form-submit">Save Task</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="task-detail-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="task-detail-title" hidden>
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h2 id="task-detail-title">Task Details</h2>
-                    <p id="task-detail-subtitle" class="modal-subtitle"></p>
-                </div>
-                <button type="button" class="icon-button modal-close" data-close-modal="task-detail-modal" aria-label="Close task details">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-            <div class="task-detail-body">
-                <div class="task-detail-top">
-                    <div id="task-detail-priority" class="priority-badge" aria-label="Task priority">High</div>
-                    <div class="task-detail-progress">
-                        <span>Progress</span>
-                        <div class="progress-bar">
-                            <div id="task-detail-progress-bar" class="progress-bar-fill" style="width: 0%"></div>
-                        </div>
-                        <span id="task-detail-progress-value" class="progress-value">0%</span>
-                    </div>
-                </div>
-                <div class="task-detail-content">
-                    <h3 id="task-detail-name"></h3>
-                    <p id="task-detail-description"></p>
-                </div>
-                <div class="task-detail-meta">
-                    <div class="meta-item">
-                        <span class="meta-label">Subject</span>
-                        <span id="task-detail-subject" class="meta-value">—</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Due Date</span>
-                        <span id="task-detail-due-date" class="meta-value">—</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Last Updated</span>
-                        <span id="task-detail-updated" class="meta-value">—</span>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-actions modal-actions-stack">
-                <button type="button" class="secondary-button" id="edit-task-action">Edit Task</button>
-                <button type="button" class="secondary-button" id="override-priority-action">Override Priority</button>
-                <button type="button" class="danger-button" id="delete-task-action">Delete Task</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="delete-confirm-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title" hidden>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="delete-confirm-title">Delete Task</h2>
-                <button type="button" class="icon-button modal-close" data-close-modal="delete-confirm-modal" aria-label="Close delete confirmation">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete this task? This action cannot be undone.</p>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="secondary-button" data-close-modal="delete-confirm-modal">Cancel</button>
-                <button type="button" class="danger-button" id="confirm-delete-task">Delete Task</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="priority-override-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="priority-override-title" hidden>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="priority-override-title">Override Task Priority</h2>
-                <button type="button" class="icon-button modal-close" data-close-modal="priority-override-modal" aria-label="Close priority override">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-            <form id="priority-override-form" class="modal-form">
-                <input type="hidden" id="priority-override-task-id">
-                <div class="form-group">
-                    <label for="priority-override-select">New Priority</label>
-                    <select id="priority-override-select" required>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="priority-override-reason">Reason (optional)</label>
-                    <textarea id="priority-override-reason" rows="3" placeholder="Add context for this override"></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="secondary-button" data-close-modal="priority-override-modal">Cancel</button>
-                    <button type="submit" class="primary-button">Apply Override</button>
+                <div class="modal__actions">
+                    <button type="button" class="button button--secondary" data-close-modal="taskFormModal">Cancel</button>
+                    <button type="submit" class="button button--primary" id="taskFormSubmit">Save Task</button>
                 </div>
             </form>
         </div>
