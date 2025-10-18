@@ -1,6 +1,6 @@
-# Smart Academic Mentor - Chatbot UI
+# Assessli - Smart Academic Mentor
 
-An AI-powered academic mentoring chatbot with a responsive, accessible front-end interface.
+An AI-powered academic mentoring application with a responsive front-end interface and Node.js/Express backend with MongoDB.
 
 ## Features
 
@@ -38,14 +38,31 @@ An AI-powered academic mentoring chatbot with a responsive, accessible front-end
 - **Persistent**: Theme preference saved to localStorage
 - **CSS Variables**: Easy theme customization through CSS custom properties
 
-## File Structure
+## Project Structure
 
 ```
 .
-├── index.html          # Main dashboard HTML structure
-├── styles.css          # Complete styling with dark mode and responsiveness
-├── script.js           # Chatbot logic and interactions
-└── README.md           # This file
+├── server/                      # Backend server
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── database.js      # MongoDB connection
+│   │   ├── models/
+│   │   │   ├── User.js          # User schema
+│   │   │   ├── Task.js          # Task schema
+│   │   │   ├── StudyPlan.js     # Study plan schema
+│   │   │   └── ChatHistory.js   # Chat history schema
+│   │   ├── controllers/         # Business logic
+│   │   ├── routes/              # API routes
+│   │   ├── middleware/          # Custom middleware
+│   │   └── server.js            # Express entry point
+│   ├── .env.example             # Environment variables template
+│   ├── package.json
+│   └── README.md                # Backend documentation
+├── index.html                   # Main dashboard HTML structure
+├── styles.css                   # Complete styling with dark mode
+├── script.js                    # Chatbot logic and interactions
+├── package.json                 # Project configuration
+└── README.md                    # This file
 ```
 
 ## Implementation Details
@@ -73,43 +90,75 @@ An AI-powered academic mentoring chatbot with a responsive, accessible front-end
 - **Local Storage**: Persists messages, tasks, and theme preferences
 - **Event Handling**: Comprehensive event listeners for all interactions
 
+## Getting Started
+
+### Backend Setup
+
+1. **Navigate to the server directory:**
+   ```bash
+   cd server
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` with your MongoDB connection string:
+   ```env
+   PORT=5000
+   MONGODB_URI=mongodb://localhost:27017/assessli
+   CORS_ORIGIN=http://localhost:8000
+   ```
+
+4. **Start the server:**
+   ```bash
+   npm run dev
+   ```
+
+The backend server will run on `http://localhost:5000`.
+
+See [server/README.md](server/README.md) for detailed backend documentation.
+
+### Frontend Setup
+
+1. **Open the frontend:**
+   - Simply open `index.html` in a browser, or
+   - Run a local server (recommended):
+     ```bash
+     python3 -m http.server 8000
+     ```
+   - Navigate to `http://localhost:8000`
+
 ## API Integration
 
-The chatbot expects a POST endpoint at `/api/chat` with the following request format:
+The chatbot communicates with the backend API. Available endpoints:
 
-```json
-{
-  "message": "User's message",
-  "conversationHistory": [
-    { "role": "user", "content": "..." },
-    { "role": "assistant", "content": "..." }
-  ],
-  "currentStep": "task_creation_subject",
-  "taskData": {}
-}
-```
+### Chat API
+- `POST /api/chat` - Send chat message
+- `POST /api/chat/session` - Create new chat session
+- `GET /api/chat/history/:sessionId` - Get chat history
 
-Expected response format:
+### Tasks API
+- `GET /api/tasks` - Get all tasks
+- `POST /api/tasks` - Create new task
+- `PUT /api/tasks/:id` - Update task
+- `DELETE /api/tasks/:id` - Delete task
 
-```json
-{
-  "message": "Bot's response",
-  "currentStep": "task_creation_description",
-  "taskData": { "subject": "Math" },
-  "actions": [
-    { "text": "Continue", "action": "continue" }
-  ],
-  "taskCreated": true,
-  "task": {
-    "title": "Study Algebra",
-    "description": "Practice problems 1-10",
-    "subject": "Math",
-    "dueDate": "2024-10-20",
-    "priority": "High"
-  },
-  "motivational": "Great job creating a task!"
-}
-```
+### Study Plans API
+- `GET /api/study-plans` - Get all study plans
+- `POST /api/study-plans` - Create new study plan
+- `POST /api/study-plans/:id/sessions` - Add study session
+
+### Motivation API
+- `GET /api/motivation/message` - Get motivational message
+- `GET /api/motivation/quote` - Get daily quote
+- `GET /api/motivation/tip` - Get study tip
 
 ## Usage
 
