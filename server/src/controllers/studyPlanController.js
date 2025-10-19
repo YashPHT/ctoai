@@ -1,5 +1,3 @@
-const StudyPlan = require('../models/StudyPlan');
-
 const studyPlanController = {
   getAllStudyPlans: async (req, res) => {
     try {

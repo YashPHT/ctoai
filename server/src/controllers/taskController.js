@@ -1,5 +1,3 @@
-const Task = require('../models/Task');
-
 const taskController = {
   getAllTasks: async (req, res) => {
     try {
