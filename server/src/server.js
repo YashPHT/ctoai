@@ -9,10 +9,13 @@ const errorHandler = require('./middleware/errorHandler');
 const taskRoutes = require('./routes/taskRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const studyPlanRoutes = require('./routes/studyPlanRoutes');
+const studyPlanComputeRoutes = require('./routes/studyPlanComputeRoutes');
 const motivationRoutes = require('./routes/motivationRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const assessmentsRoutes = require('./routes/assessmentsRoutes');
+const subjectRoutes = require('./routes/subjectRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,7 +55,10 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       tasks: '/api/tasks',
+      subjects: '/api/subjects',
+      events: '/api/events',
       chat: '/api/chat',
+      studyPlan: '/api/study-plan',
       studyPlans: '/api/study-plans',
       motivation: '/api/motivation',
       timetable: '/api/timetable',
@@ -76,7 +82,10 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/tasks', taskRoutes);
+app.use('/api/subjects', subjectRoutes);
+app.use('/api/events', eventRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/study-plan', studyPlanComputeRoutes);
 app.use('/api/study-plans', studyPlanRoutes);
 app.use('/api/motivation', motivationRoutes);
 app.use('/api/timetable', timetableRoutes);
