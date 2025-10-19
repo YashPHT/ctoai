@@ -633,20 +633,33 @@
                         <span class="chatbot-status chatbot-modal__status">Online</span>
                     </div>
                 </div>
-                <button 
-                    id="close-chatbot" 
-                    class="close-button chatbot-modal__close-button"
-                    aria-label="Close chatbot">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
+                <div class="chatbot-header__actions">
+                    <button 
+                        id="reset-chat"
+                        class="icon-button chatbot-modal__reset-button"
+                        aria-label="Reset conversation">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                    <button 
+                        id="close-chatbot" 
+                        class="close-button chatbot-modal__close-button"
+                        aria-label="Close chatbot">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
             
             <div id="chatbot-messages" class="chatbot-messages chatbot-modal__messages" role="log" aria-live="polite" aria-atomic="false">
                 <!-- Messages will be dynamically added here -->
             </div>
+            <div id="chat-aria-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
             
             <div class="chatbot-input-container chatbot-modal__input-container">
                 <div class="quick-actions" id="quick-actions">
@@ -701,6 +714,14 @@
 
     <!-- Overlay -->
     <div id="chatbot-overlay" class="chatbot-overlay" hidden></div>
+
+    <!-- Floating Chat Launcher -->
+    <button id="chatbot-fab" class="chatbot-fab" aria-label="Open AI mentor chat" title="Chat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span class="sr-only">Open AI Mentor Chat</span>
+    </button>
 
     <!-- Task Management Modals -->
     <div id="task-modal-overlay" class="modal-overlay" hidden></div>
@@ -903,6 +924,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="public/js/api.js"></script>
+    <script src="public/js/chatbot.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
