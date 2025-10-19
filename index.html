@@ -867,6 +867,42 @@
         </div>
     </div>
 
+    <!-- Timetable Editor Modal -->
+    <div id="timetable-editor-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="timetable-editor-title" hidden>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="timetable-editor-title">Edit Timetable</h2>
+                <button type="button" class="icon-button modal-close" data-close-modal="timetable-editor-modal" aria-label="Close timetable editor">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="timetable-editor-form" class="modal-form">
+                <div class="form-group">
+                    <p>Quick edit your weekly timetable (JSON). Example:</p>
+                    <pre style="white-space: pre-wrap; background: var(--surface-3, #0b0b0b0a); padding: .5rem; border-radius: .5rem;">
+{
+  "days": {
+    "monday": [{"time":"09:00","subject":"Mathematics","room":"Room 101","durationMinutes":60}],
+    "tuesday": []
+  }
+}
+                    </pre>
+                    <label for="timetable-json-input">Timetable JSON</label>
+                    <textarea id="timetable-json-input" rows="10" placeholder='{"days": {"monday": []}}'></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary-button" data-close-modal="timetable-editor-modal">Cancel</button>
+                    <button type="submit" class="primary-button" id="timetable-save">Save Timetable</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="public/js/api.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
