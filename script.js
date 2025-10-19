@@ -44,6 +44,7 @@ class SmartMentorChatbot {
     
     init() {
         this.cacheElements();
+        this.initChatClient();
         this.attachEventListeners();
         this.handleViewportChange();
         this.loadFromStorage();
@@ -127,13 +128,57 @@ class SmartMentorChatbot {
             timetableEditButton: document.querySelector('[data-action="edit-timetable"]'),
             timetableEditorModal: document.getElementById('timetable-editor-modal'),
             timetableEditorForm: document.getElementById('timetable-editor-form'),
-            timetableJsonInput: document.getElementById('timetable-json-input')
+            timetableJsonInput: document.getElementById('timetable-json-input'),
+            chatbotFab: document.getElementById('chatbot-fab'),
+            resetChat: document.getElementById('reset-chat'),
+            chatAnnouncer: document.getElementById('chat-aria-live')
         };
+    }
+    
+    initChatClient() {
+        if (!window.ChatbotClient) {
+            this.chat = null;
+            return;
+        }
+        const self = this;
+        this.chat = new window.ChatbotClient({
+            endpoint: '/api/chat',
+            storageKey: 'smartMentorConversation',
+            maxHistory: 20,
+            onStreamStart() {
+                self.showTypingIndicator();
+                self.beginStreamingBotMessage();
+            },
+            onStreamDelta(delta, aggregate) {
+                self.updateStreamingBotMessage(aggregate);
+            },
+            onStreamComplete(fullText, meta) {
+                self.hideTypingIndicator();
+                self.finishStreamingBotMessage(fullText, meta);
+                if (meta && meta.suggestions && Array.isArray(meta.suggestions) && meta.suggestions.length) {
+                    self.addActionButtons(meta.suggestions.map(text => ({ text })));
+                }
+            },
+            onIntent(intent, payload, resources) {
+                self.handleIntent(intent, payload, resources);
+            },
+            onError(err) {
+                console.error('Chat error:', err);
+                self.hideTypingIndicator();
+                self.addMessage('bot', "I'm having trouble connecting right now. Let's try again in a moment.");
+            }
+        });
     }
     
     attachEventListeners() {
         if (this.elements.chatbotTrigger) {
             this.elements.chatbotTrigger.addEventListener('click', () => this.openChatbot());
+        }
+        if (this.elements.chatbotFab) {
+            this.elements.chatbotFab.addEventListener('click', () => this.openChatbot());
+        }
+        if (this.elements.resetChat) {
+            this.elements.resetChat.addEventListener('click', () => this.resetConversation());
         }
         if (this.elements.sidebarToggle) {
             this.elements.sidebarToggle.addEventListener('click', () => this.toggleSidebarVisibility());
@@ -266,6 +311,7 @@ class SmartMentorChatbot {
     
     openChatbot() {
         this.conversationState.isOpen = true;
+        this._restoreFocusTo = document.activeElement;
         this.elements.chatbotModal.removeAttribute('hidden');
         this.elements.chatbotOverlay.removeAttribute('hidden');
         
@@ -273,6 +319,7 @@ class SmartMentorChatbot {
             this.elements.chatbotModal.classList.add('active');
             this.elements.chatbotOverlay.classList.add('active');
             this.elements.chatbotInput.focus();
+            this.setupChatFocusTrap();
         }, 10);
         
         this.elements.chatNotification.classList.remove('active');
@@ -281,12 +328,15 @@ class SmartMentorChatbot {
     
     closeChatbot() {
         this.conversationState.isOpen = false;
+        this.teardownChatFocusTrap();
         this.elements.chatbotModal.classList.remove('active');
         this.elements.chatbotOverlay.classList.remove('active');
         
         setTimeout(() => {
             this.elements.chatbotModal.setAttribute('hidden', '');
             this.elements.chatbotOverlay.setAttribute('hidden', '');
+            const restoreTo = this._restoreFocusTo || this.elements.chatbotTrigger || this.elements.chatbotFab;
+            if (restoreTo && typeof restoreTo.focus === 'function') restoreTo.focus();
         }, 350);
     }
     
@@ -318,15 +368,26 @@ class SmartMentorChatbot {
         this.elements.sendButton.disabled = true;
         this.elements.chatbotInput.style.height = 'auto';
         
-        this.showTypingIndicator();
-        
-        try {
-            await this.sendToAPI(message);
-        } catch (error) {
-            console.error('Error communicating with chatbot:', error);
-            this.hideTypingIndicator();
-            this.addMessage('bot', "I'm having trouble connecting right now. Let me help you offline with common tasks!");
-            this.offerOfflineOptions();
+        if (this.chat) {
+            try {
+                await this.chat.sendMessage(message);
+            } catch (error) {
+                console.error('Error communicating with chatbot:', error);
+                this.hideTypingIndicator();
+                this.addMessage('bot', "I'm having trouble connecting right now. Let me help you offline with common tasks!");
+                this.offerOfflineOptions();
+            }
+        } else {
+            // Fallback to legacy API flow
+            this.showTypingIndicator();
+            try {
+                await this.sendToAPI(message);
+            } catch (error) {
+                console.error('Error communicating with chatbot:', error);
+                this.hideTypingIndicator();
+                this.addMessage('bot', "I'm having trouble connecting right now. Let me help you offline with common tasks!");
+                this.offerOfflineOptions();
+            }
         }
     }
     
@@ -344,9 +405,7 @@ class SmartMentorChatbot {
                 },
                 body: JSON.stringify({
                     message: message,
-                    conversationHistory: this.conversationState.conversationHistory,
-                    currentStep: this.conversationState.currentStep,
-                    taskData: this.conversationState.taskData
+                    sessionId: this.chat?.state?.sessionId || undefined
                 })
             });
             
@@ -354,12 +413,16 @@ class SmartMentorChatbot {
                 throw new Error('API request failed');
             }
             
-            const data = await response.json();
+            const raw = await response.json();
+            const payload = raw?.data || raw || {};
+            const { reply, intent, resources } = payload;
             
             setTimeout(() => {
                 this.hideTypingIndicator();
-                this.processAPIResponse(data);
-            }, 500 + Math.random() * 1000);
+                if (reply) this.addMessage('bot', reply);
+                if (resources) this.applyResources(resources);
+                if (intent && intent !== 'none') this.handleIntent(intent, payload.payload || {}, resources || {});
+            }, 300 + Math.random() * 600);
             
         } catch (error) {
             this.hideTypingIndicator();
@@ -603,6 +666,115 @@ class SmartMentorChatbot {
         const typingEl = document.querySelector('.typing-indicator');
         if (typingEl) {
             typingEl.remove();
+        }
+    }
+
+    beginStreamingBotMessage() {
+        if (this.streamingMessage?.el && this.streamingMessage.el.isConnected) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message bot';
+        wrapper.setAttribute('role', 'article');
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>';
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = '';
+        const time = document.createElement('div');
+        time.className = 'message-time';
+        time.textContent = '...';
+        content.appendChild(bubble);
+        content.appendChild(time);
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(content);
+        this.elements.chatbotMessages.appendChild(wrapper);
+        this.streamingMessage = { el: wrapper, bubbleEl: bubble, timeEl: time, text: '' };
+        if (this.elements.chatAnnouncer) {
+            this.elements.chatAnnouncer.textContent = 'Assistant is typing';
+        }
+        this.scrollToBottom();
+    }
+
+    updateStreamingBotMessage(text) {
+        if (!this.streamingMessage || !this.streamingMessage.bubbleEl) {
+            this.beginStreamingBotMessage();
+        }
+        this.streamingMessage.text = text;
+        this.streamingMessage.bubbleEl.textContent = text;
+        if (this.elements.chatAnnouncer) {
+            try { this.elements.chatAnnouncer.textContent = text.slice(-120); } catch (_) {}
+        }
+        this.scrollToBottom();
+    }
+
+    finishStreamingBotMessage(fullText, meta = {}) {
+        if (!this.streamingMessage || !this.streamingMessage.bubbleEl) {
+            this.beginStreamingBotMessage();
+        }
+        this.streamingMessage.bubbleEl.textContent = fullText;
+        this.streamingMessage.timeEl.textContent = this.formatTime(new Date());
+        // persist message to history
+        this.conversationState.messages.push({ id: Date.now() + Math.random(), sender: 'bot', text: fullText, timestamp: new Date() });
+        this.saveToStorage();
+        // handle intent/resources
+        if (meta && meta.resources) {
+            this.applyResources(meta.resources);
+        }
+        if (meta && meta.intent && meta.intent !== 'none') {
+            // Announce intent and also dispatch a custom event for external listeners
+            window.dispatchEvent(new CustomEvent('chatbot:intent', { detail: { intent: meta.intent, payload: meta.payload || {}, resources: meta.resources || {} } }));
+            // Simple auto-action: refresh tasks for relevant intents
+            if (meta.intent === 'create_task' || meta.intent === 'update_task' || meta.intent === 'complete_task') {
+                this.refreshTasks();
+            }
+        }
+        // clear streaming message state
+        this.streamingMessage = null;
+    }
+
+    handleIntent(intent, payload = {}, resources = {}) {
+        // Handle common intents by updating UI/state
+        switch (intent) {
+            case 'create_task':
+            case 'update_task':
+            case 'complete_task':
+                this.applyResources(resources);
+                this.renderTasks();
+                break;
+            case 'create_subject':
+                // No-op in UI for now; could update subject pickers
+                break;
+            default:
+                break;
+        }
+    }
+
+    applyResources(resources = {}) {
+        if (resources && Array.isArray(resources.tasks)) {
+            this.tasks = resources.tasks.map(t => this.normalizeTask(t)).filter(Boolean);
+            this.saveToStorage();
+            this.renderTasks();
+        }
+        // Future: subjects/events integration
+    }
+
+    async resetConversation() {
+        try {
+            if (this.chat && this.chat.reset) {
+                await this.chat.reset();
+            }
+        } catch (_) {}
+        // Clear UI
+        this.conversationState.messages = [];
+        if (this.elements.chatbotMessages) {
+            this.elements.chatbotMessages.innerHTML = '';
+        }
+        this.saveToStorage();
+        this.displayWelcomeMessage();
+        if (this.elements.chatAnnouncer) {
+            this.elements.chatAnnouncer.textContent = 'Conversation reset';
         }
     }
     
@@ -969,6 +1141,52 @@ class SmartMentorChatbot {
             this.closeSidebar();
         }
     }
+
+    setupChatFocusTrap() {
+        const modal = this.elements.chatbotModal;
+        if (!modal) return;
+        const selectors = [
+            'a[href]','area[href]','input:not([disabled])','select:not([disabled])','textarea:not([disabled])',
+            'button:not([disabled])','iframe','[tabindex]:not([tabindex="-1"])','[contentEditable=true]'
+        ];
+        const getFocusable = () => Array.from(modal.querySelectorAll(selectors.join(','))).filter(el => el.offsetParent !== null || el === document.activeElement);
+        this._chatTrapHandler = (e) => {
+            if (e.key !== 'Tab') return;
+            const focusables = getFocusable();
+            if (!focusables.length) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+        this._chatFocusinHandler = (e) => {
+            if (!modal.contains(e.target)) {
+                this.elements.chatbotInput && this.elements.chatbotInput.focus();
+            }
+        };
+        document.addEventListener('keydown', this._chatTrapHandler);
+        document.addEventListener('focusin', this._chatFocusinHandler);
+    }
+
+    teardownChatFocusTrap() {
+        if (this._chatTrapHandler) {
+            document.removeEventListener('keydown', this._chatTrapHandler);
+            this._chatTrapHandler = null;
+        }
+        if (this._chatFocusinHandler) {
+            document.removeEventListener('focusin', this._chatFocusinHandler);
+            this._chatFocusinHandler = null;
+        }
+    }
     
     scrollToBottom() {
         setTimeout(() => {
@@ -996,7 +1214,8 @@ class SmartMentorChatbot {
     
     saveToStorage() {
         try {
-            localStorage.setItem('smartMentorMessages', JSON.stringify(this.conversationState.messages));
+            const msgs = Array.isArray(this.conversationState.messages) ? this.conversationState.messages.slice(-20) : [];
+            localStorage.setItem('smartMentorMessages', JSON.stringify(msgs));
             localStorage.setItem('smartMentorTasks', JSON.stringify(this.tasks));
         } catch (error) {
             console.error('Error saving to storage:', error);
