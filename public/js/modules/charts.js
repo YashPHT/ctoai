@@ -11,7 +11,7 @@
       const vText = el.querySelector('[data-stat-value]')?.textContent || '0';
       const hours = parseFloat(vText.replace(/[^0-9.]/g, '')) || 0;
       labels.push(label); values.push(hours);
-      const color = el.querySelector('.time-stats__color')?.style?.backgroundColor || '#4F46E5';
+      const color = el.querySelector('.time-stats__color')?.style?.backgroundColor || '#2563EB';
       colors.push(color);
     });
     return { labels, values, colors };
@@ -59,7 +59,7 @@
       values.forEach((v, i) => {
         const x = 20 + i * barW * 1.5;
         const bh = (v / max) * (canvas.height - 40);
-        ctx.fillStyle = colors[i] || '#4F46E5';
+        ctx.fillStyle = colors[i] || '#2563EB';
         ctx.fillRect(x, canvas.height - bh - 20, barW, bh);
         ctx.fillStyle = '#6b7280'; ctx.font = '12px system-ui';
         ctx.fillText(labels[i] || '', x, canvas.height - 5);
@@ -84,7 +84,7 @@
     const pts = data.map((v, i) => [i / Math.max(1, data.length - 1) * (canvas.width - 40) + 20, canvas.height - 20 - (v / max) * (canvas.height - 40)]);
     U.rafTween({ duration: 420, onUpdate: (_, t) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.strokeStyle = '#2563EB'; ctx.lineWidth = 2; ctx.beginPath();
       pts.forEach(([x, y], i) => {
         const iy = canvas.height - 20 - (1 - t) * (canvas.height - 20 - y);
         if (i === 0) ctx.moveTo(x, iy); else ctx.lineTo(x, iy);

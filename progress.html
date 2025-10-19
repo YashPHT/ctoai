@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Mentor – Assessment</title>
+  <title>Smart Mentor – Progress</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -42,21 +42,52 @@
       </div>
     </aside>
 
+    <!-- Main -->
     <div class="main-wrapper">
       <header class="dashboard-header" role="banner">
         <div class="dashboard-header__content">
           <div class="dashboard-header__title-section">
-            <h1 class="dashboard-header__title">Assessment</h1>
-            <p class="dashboard-header__subtitle">Assessments and evaluations overview.</p>
+            <h1 class="dashboard-header__title">Progress</h1>
+            <p class="dashboard-header__subtitle">Overview of progress and performance.</p>
           </div>
           <div class="dashboard-header__actions">
             <button class="primary-button" id="add-task" aria-label="Add new task"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Task</span></button>
+            <div class="progress-view-toggle" role="group" aria-label="Period selector">
+              <button class="progress-view-toggle__button progress-view-toggle__button--active" data-view="weekly" aria-pressed="true">Weekly</button>
+              <button class="progress-view-toggle__button" data-view="monthly" aria-pressed="false">Monthly</button>
+              <button class="progress-view-toggle__button" data-view="yearly" aria-pressed="false">Yearly</button>
+            </div>
           </div>
         </div>
       </header>
+
       <main class="dashboard-content" role="main">
         <div class="dashboard-grid">
-          <section class="dashboard-card" aria-labelledby="assessmentTitle"><div class="dashboard-card__header"><h2 class="dashboard-card__title" id="assessmentTitle">Assessment</h2></div><div class="dashboard-card__content"><p style="color:var(--text-secondary)">This page is a placeholder for the Assessment module.</p></div></section>
+          <section class="dashboard-card dashboard-card--progress" aria-labelledby="progressGraphTitle">
+            <div class="dashboard-card__header">
+              <div class="dashboard-card__title-group">
+                <h2 class="dashboard-card__title" id="progressGraphTitle">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                  Progress Overview
+                </h2>
+              </div>
+              <div class="progress-view-toggle" role="group" aria-label="Progress view options">
+                <button class="progress-view-toggle__button progress-view-toggle__button--active" data-view="weekly" aria-pressed="true">Weekly</button>
+                <button class="progress-view-toggle__button" data-view="monthly" aria-pressed="false">Monthly</button>
+                <button class="progress-view-toggle__button" data-view="yearly" aria-pressed="false">Yearly</button>
+              </div>
+            </div>
+            <div class="dashboard-card__content">
+              <div class="progress-graph" data-graph-container>
+                <canvas id="progressGraphCanvas" class="progress-graph__canvas" data-chart="progress" role="img" aria-label="Line graph showing progress"></canvas>
+              </div>
+              <div class="progress-summary">
+                <div class="progress-summary__item"><span class="progress-summary__value">—</span><span class="progress-summary__label">Completed</span></div>
+                <div class="progress-summary__item"><span class="progress-summary__value">—</span><span class="progress-summary__label">In Progress</span></div>
+                <div class="progress-summary__item"><span class="progress-summary__value">—</span><span class="progress-summary__label">Avg Score</span></div>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
     </div>
@@ -64,9 +95,22 @@
 
   <button id="add-task-fab" aria-label="Add Task" title="Add Task"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span class="sr-only">Add Task</span></button>
 
-  <!-- Chatbot + Modals (minimal) -->
+  <!-- Chatbot + Modals -->
   <div id="chatbot-modal" class="chatbot-modal" role="dialog" aria-labelledby="chatbot-title" aria-modal="true" hidden>
-    <div class="chatbot-container chatbot-modal__container"><div class="chatbot-header chatbot-modal__header"><div class="chatbot-title-section chatbot-modal__title-section"><div class="mentor-avatar chatbot-modal__avatar"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg></div><div><h2 id="chatbot-title">Smart Mentor</h2><span class="chatbot-status chatbot-modal__status">Online</span></div></div><div class="chatbot-header__actions"><button id="reset-chat" class="icon-button chatbot-modal__reset-button" aria-label="Reset conversation"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></button><button id="close-chatbot" class="close-button chatbot-modal__close-button" aria-label="Close chatbot"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div></div><div id="chatbot-messages" class="chatbot-messages chatbot-modal__messages" role="log" aria-live="polite" aria-atomic="false"></div><div id="chat-aria-live" class="sr-only" aria-live="polite" aria-atomic="true"></div><div class="chatbot-input-container chatbot-modal__input-container"><form id="chatbot-form" class="chatbot-input-form chatbot-modal__form"><textarea id="chatbot-input" class="chatbot-input chatbot-modal__input" placeholder="Type your message..." rows="1" aria-label="Chat message input" autocomplete="off"></textarea><button type="submit" id="send-button" class="send-button chatbot-modal__send-button" aria-label="Send message" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button></form></div></div>
+    <div class="chatbot-container chatbot-modal__container">
+      <div class="chatbot-header chatbot-modal__header">
+        <div class="chatbot-title-section chatbot-modal__title-section"><div class="mentor-avatar chatbot-modal__avatar"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg></div><div><h2 id="chatbot-title">Smart Mentor</h2><span class="chatbot-status chatbot-modal__status">Online</span></div></div>
+        <div class="chatbot-header__actions"><button id="reset-chat" class="icon-button chatbot-modal__reset-button" aria-label="Reset conversation"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></button><button id="close-chatbot" class="close-button chatbot-modal__close-button" aria-label="Close chatbot"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>
+      </div>
+      <div id="chatbot-messages" class="chatbot-messages chatbot-modal__messages" role="log" aria-live="polite" aria-atomic="false"></div>
+      <div id="chat-aria-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+      <div class="chatbot-input-container chatbot-modal__input-container">
+        <form id="chatbot-form" class="chatbot-input-form chatbot-modal__form">
+          <textarea id="chatbot-input" class="chatbot-input chatbot-modal__input" placeholder="Type your message..." rows="1" aria-label="Chat message input" autocomplete="off"></textarea>
+          <button type="submit" id="send-button" class="send-button chatbot-modal__send-button" aria-label="Send message" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+        </form>
+      </div>
+    </div>
   </div>
   <div id="chatbot-overlay" class="chatbot-overlay" hidden></div>
 

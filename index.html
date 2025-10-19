@@ -53,7 +53,7 @@
                         </a>
                     </li>
                     <li class="sidebar__nav-item">
-                        <a href="#taskListSection" class="sidebar__nav-link">
+                        <a href="assignments.html" class="sidebar__nav-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -65,7 +65,7 @@
                         </a>
                     </li>
                     <li class="sidebar__nav-item">
-                        <a href="#timetableSection" class="sidebar__nav-link">
+                        <a href="timetable.html" class="sidebar__nav-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -76,7 +76,7 @@
                         </a>
                     </li>
                     <li class="sidebar__nav-item">
-                        <a href="#progressGraph" class="sidebar__nav-link">
+                        <a href="progress.html" class="sidebar__nav-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <line x1="18" y1="20" x2="18" y2="10"></line>
                                 <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -86,7 +86,7 @@
                         </a>
                     </li>
                     <li class="sidebar__nav-item">
-                        <a href="#calendarSection" class="sidebar__nav-link">
+                        <a href="calendar.html" class="sidebar__nav-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -133,7 +133,7 @@
                         </a>
                     </li>
                     <li class="sidebar__nav-item">
-                        <a href="#" id="nav-ai-mentor" class="sidebar__nav-link" data-ai-nav>
+                        <a href="ai-mentor.html" class="sidebar__nav-link">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                             </svg>
@@ -176,7 +176,7 @@
                 <div class="dashboard-header__content">
                     <div class="dashboard-header__title-section">
                         <h1 class="dashboard-header__title">Dashboard</h1>
-                        <p class="dashboard-header__subtitle motivational-message" id="motivational-message">Welcome back! Let's make today productive 🎯</p>
+                        <p class="dashboard-header__subtitle motivational-message" id="motivational-message">Consistency is key to success! 🎯</p>
                     </div>
                     <div class="dashboard-header__actions">
                         <button 
@@ -189,6 +189,11 @@
                             </svg>
                             <span>Add Task</span>
                         </button>
+                        <div class="progress-view-toggle" role="group" aria-label="Period selector">
+                            <button class="progress-view-toggle__button progress-view-toggle__button--active" data-view="weekly" aria-pressed="true">Weekly</button>
+                            <button class="progress-view-toggle__button" data-view="monthly" aria-pressed="false">Monthly</button>
+                            <button class="progress-view-toggle__button" data-view="yearly" aria-pressed="false">Yearly</button>
+                        </div>
                         <button 
                             class="dashboard-header__icon-button icon-button" 
                             id="theme-toggle"
@@ -568,6 +573,62 @@
                                     <h3>No tasks yet</h3>
                                     <p>Chat with your AI mentor to create personalized study tasks!</p>
                                     <button class="primary-button" id="start-chat-empty">Start Chatting</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Row B: Grades -->
+                    <section class="dashboard-card dashboard-card--grades-months" aria-labelledby="gradesMonthsTitle">
+                        <div class="dashboard-card__header">
+                            <h2 class="dashboard-card__title" id="gradesMonthsTitle">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <polyline points="3 17 9 11 13 15 21 7"></polyline>
+                                    <polyline points="3 7 3 17 21 17"></polyline>
+                                </svg>
+                                Grade by Months
+                            </h2>
+                            <span class="dashboard-card__badge">School Average</span>
+                        </div>
+                        <div class="dashboard-card__content">
+                            <div class="time-chart" aria-hidden="true" style="height:200px; display:grid; place-items:center; border:1px dashed var(--border-color); border-radius:10px; color: var(--text-secondary);">
+                                <span>Line chart placeholder</span>
+                            </div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <span style="width:18px;height:2px;background:var(--primary-color);display:inline-block;"></span><span class="progress-summary__label">Your Grade</span>
+                                <span style="width:18px;height:2px;border-bottom:2px dashed var(--text-tertiary);display:inline-block;margin-left:16px;"></span><span class="progress-summary__label">School Avg</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="dashboard-card dashboard-card--grades-subject" aria-labelledby="gradesSubjectTitle">
+                        <div class="dashboard-card__header">
+                            <h2 class="dashboard-card__title" id="gradesSubjectTitle">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <line x1="4" y1="6" x2="20" y2="6"></line>
+                                    <line x1="4" y1="12" x2="16" y2="12"></line>
+                                    <line x1="4" y1="18" x2="12" y2="18"></line>
+                                </svg>
+                                Grade by Subject
+                            </h2>
+                        </div>
+                        <div class="dashboard-card__content">
+                            <div role="list" aria-label="Subject grades" style="display:flex; flex-direction:column; gap:10px;">
+                                <div role="listitem">
+                                    <div style="display:flex; justify-content:space-between; color:var(--text-secondary); font-size: var(--font-size-sm); margin-bottom:4px;"><span>Mathematics</span><span>88%</span></div>
+                                    <div class="progress-bar"><div class="progress-bar-fill" style="width:88%"></div></div>
+                                </div>
+                                <div role="listitem">
+                                    <div style="display:flex; justify-content:space-between; color:var(--text-secondary); font-size: var(--font-size-sm); margin-bottom:4px;"><span>Science</span><span>74%</span></div>
+                                    <div class="progress-bar"><div class="progress-bar-fill" style="width:74%"></div></div>
+                                </div>
+                                <div role="listitem">
+                                    <div style="display:flex; justify-content:space-between; color:var(--text-secondary); font-size: var(--font-size-sm); margin-bottom:4px;"><span>History</span><span>81%</span></div>
+                                    <div class="progress-bar"><div class="progress-bar-fill" style="width:81%"></div></div>
+                                </div>
+                                <div role="listitem">
+                                    <div style="display:flex; justify-content:space-between; color:var(--text-secondary); font-size: var(--font-size-sm); margin-bottom:4px;"><span>English</span><span>92%</span></div>
+                                    <div class="progress-bar"><div class="progress-bar-fill" style="width:92%"></div></div>
                                 </div>
                             </div>
                         </div>

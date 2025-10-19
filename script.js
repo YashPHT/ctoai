@@ -2036,7 +2036,7 @@ class SmartMentorChatbot {
         const animate = (now) => {
             t = Math.min(1, (now - start) / duration);
             ctx.clearRect(0, 0, w, h);
-            ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.strokeStyle = '#2563EB'; ctx.lineWidth = 2; ctx.beginPath();
             pts.forEach(([x, y], i) => {
                 const iy = h - 20 - (1 - t) * (h - 20 - y);
                 if (i === 0) ctx.moveTo(x, iy); else ctx.lineTo(x, iy);
@@ -2239,7 +2239,7 @@ class SmartMentorChatbot {
             const item = document.createElement('div');
             item.className = 'calendar-event';
             item.innerHTML = `
-                <div class="calendar-event__marker" style="background-color:#4F46E5;"></div>
+                <div class="calendar-event__marker" style="background-color:#2563EB;"></div>
                 <div class="calendar-event__content">
                     <span class="calendar-event__title">${e.title}</span>
                     <span class="calendar-event__date">${sel.toDateString()}</span>
