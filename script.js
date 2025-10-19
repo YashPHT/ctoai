@@ -17,7 +17,9 @@ class SmartMentorChatbot {
         this.apiEndpoints = {
             tasks: '/api/tasks',
             task: (id) => `/api/tasks/${encodeURIComponent(id)}`,
-            taskPriority: (id) => `/api/tasks/${encodeURIComponent(id)}/priority`
+            taskPriority: (id) => `/api/tasks/${encodeURIComponent(id)}/priority`,
+            timetable: '/api/timetable',
+            analytics: '/api/analytics'
         };
         this.motivationalMessages = [
             "You're doing great! Keep up the momentum! 🚀",
@@ -28,6 +30,11 @@ class SmartMentorChatbot {
             "Stay focused and watch yourself grow! 🌱",
             "Progress, not perfection! 👏"
         ];
+
+        this.analytics = null;
+        this.charts = {};
+        this.calendarState = { currentDate: new Date(), selectedDate: new Date(), eventsByDate: {} };
+        this.timetable = null;
         
         this.boundHandleViewportChange = this.handleViewportChange.bind(this);
         this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
@@ -43,7 +50,14 @@ class SmartMentorChatbot {
         this.displayWelcomeMessage();
         this.updateMotivationalMessage();
         this.renderTasks();
-        this.fetchTasks();
+        const fetchTasksPromise = this.fetchTasks();
+        if (fetchTasksPromise && typeof fetchTasksPromise.then === 'function') {
+            fetchTasksPromise.then(() => this.initAnalyticsAndCharts()).catch(() => this.initAnalyticsAndCharts());
+        } else {
+            setTimeout(() => this.initAnalyticsAndCharts(), 300);
+        }
+        this.fetchTimetable();
+        this.setupCalendar();
     }
     
     cacheElements() {
@@ -100,7 +114,20 @@ class SmartMentorChatbot {
             priorityOverrideForm: document.getElementById('priority-override-form'),
             priorityOverrideTaskId: document.getElementById('priority-override-task-id'),
             priorityOverrideSelect: document.getElementById('priority-override-select'),
-            priorityOverrideReason: document.getElementById('priority-override-reason')
+            priorityOverrideReason: document.getElementById('priority-override-reason'),
+            // New data-driven UI elements
+            timeChartCanvas: document.getElementById('timeChartCanvas'),
+            progressGraphCanvas: document.getElementById('progressGraphCanvas'),
+            progressViewButtons: document.querySelectorAll('.progress-view-toggle__button'),
+            calendarDaysContainer: document.querySelector('[data-calendar-days]'),
+            calendarMonthLabel: document.querySelector('[data-current-month]'),
+            calendarNavButtons: document.querySelectorAll('[data-calendar-nav]'),
+            calendarEventsList: document.querySelector('[data-calendar-events] .calendar-events__list'),
+            timetableSchedule: document.querySelector('[data-timetable-container] .timetable__schedule'),
+            timetableEditButton: document.querySelector('[data-action="edit-timetable"]'),
+            timetableEditorModal: document.getElementById('timetable-editor-modal'),
+            timetableEditorForm: document.getElementById('timetable-editor-form'),
+            timetableJsonInput: document.getElementById('timetable-json-input')
         };
     }
     
@@ -218,6 +245,23 @@ class SmartMentorChatbot {
                 }
             }
         });
+
+        if (this.elements.timetableEditButton) {
+            this.elements.timetableEditButton.addEventListener('click', () => this.openTimetableEditor());
+        }
+        if (this.elements.timetableEditorForm) {
+            this.elements.timetableEditorForm.addEventListener('submit', (e) => this.handleTimetableSave(e));
+        }
+        if (this.elements.progressViewButtons && this.elements.progressViewButtons.forEach) {
+            this.elements.progressViewButtons.forEach(btn => {
+                btn.addEventListener('click', () => this.handleProgressViewToggle(btn));
+            });
+        }
+        if (this.elements.calendarNavButtons && this.elements.calendarNavButtons.forEach) {
+            this.elements.calendarNavButtons.forEach(btn => {
+                btn.addEventListener('click', () => this.handleCalendarNavClick(btn.getAttribute('data-calendar-nav')));
+            });
+        }
     }
     
     openChatbot() {
@@ -623,9 +667,16 @@ class SmartMentorChatbot {
     
     renderTasks() {
         this.renderPriorityTasks();
+        const listEl = this.elements.taskList;
+        if (!listEl) return;
+        const errorBanner = this.lastTaskFetchError ? `
+            <div class="inline-error" role="alert">
+                <span>Unable to refresh tasks. You're viewing cached data.</span>
+                <button class="link-button" id="retry-fetch-tasks">Retry</button>
+            </div>` : '';
         
         if (this.tasks.length === 0) {
-            this.elements.taskList.innerHTML = `
+            listEl.innerHTML = errorBanner + `
                 <div class="empty-state">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M9 11l3 3L22 4"></path>
@@ -636,7 +687,8 @@ class SmartMentorChatbot {
                     <button class="primary-button" id="start-chat-empty">Start Chatting</button>
                 </div>
             `;
-            
+            const retry = document.getElementById('retry-fetch-tasks');
+            if (retry) retry.addEventListener('click', () => this.refreshTasks());
             const startButton = document.getElementById('start-chat-empty');
             if (startButton) {
                 startButton.addEventListener('click', () => this.openChatbot());
@@ -644,7 +696,9 @@ class SmartMentorChatbot {
             return;
         }
         
-        this.elements.taskList.innerHTML = '';
+        listEl.innerHTML = errorBanner;
+        const retryBtn = document.getElementById('retry-fetch-tasks');
+        if (retryBtn) retryBtn.addEventListener('click', () => this.refreshTasks());
         
         const tasks = this.getSortedTasks();
         
@@ -977,37 +1031,29 @@ class SmartMentorChatbot {
         this.isFetchingTasks = true;
         
         try {
-            const response = await fetch(this.apiEndpoints.tasks, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Task fetch failed with status ${response.status}`);
+            let tasks = null;
+            if (window.api && window.api.getTasks) {
+                const payload = await window.api.getTasks();
+                tasks = Array.isArray(payload)
+                    ? payload
+                    : Array.isArray(payload?.tasks)
+                        ? payload.tasks
+                        : Array.isArray(payload?.data)
+                            ? payload.data
+                            : [];
+            } else {
+                const response = await fetch(this.apiEndpoints.tasks, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`Task fetch failed with status ${response.status}`);
+                const payload = await response.json();
+                tasks = Array.isArray(payload) ? payload : Array.isArray(payload?.tasks) ? payload.tasks : Array.isArray(payload?.data) ? payload.data : [];
             }
-            
-            let payload = null;
-            try {
-                payload = await response.json();
-            } catch (error) {
-                payload = null;
-            }
-            
-            const tasks = Array.isArray(payload)
-                ? payload
-                : Array.isArray(payload?.tasks)
-                    ? payload.tasks
-                    : Array.isArray(payload?.data)
-                        ? payload.data
-                        : [];
-            
             if (Array.isArray(tasks)) {
                 this.tasks = tasks.map(task => this.normalizeTask(task)).filter(Boolean);
                 this.saveToStorage();
             }
-            
             this.lastTaskFetchError = null;
         } catch (error) {
             console.warn('Task API unavailable, using stored data:', error);
@@ -1131,23 +1177,25 @@ class SmartMentorChatbot {
         });
         
         try {
-            const response = await fetch(this.apiEndpoints.tasks, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(task)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.task) {
-                    this.tasks.push(this.normalizeTask(data.task));
+            if (window.api && window.api.createTask) {
+                const created = await window.api.createTask(task);
+                this.tasks.push(this.normalizeTask(created));
+            } else {
+                const response = await fetch(this.apiEndpoints.tasks, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(task)
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.task || data.data) {
+                        this.tasks.push(this.normalizeTask(data.task || data.data));
+                    } else {
+                        this.tasks.push(task);
+                    }
                 } else {
                     this.tasks.push(task);
                 }
-            } else {
-                this.tasks.push(task);
             }
         } catch (error) {
             console.warn('Task creation API unavailable, saving locally');
@@ -1156,6 +1204,8 @@ class SmartMentorChatbot {
         
         this.saveToStorage();
         this.updateMotivationalMessage("Great! Task created successfully! 🎉");
+        this.initAnalyticsAndCharts();
+        this.buildEventsFromData();
     }
     
     async updateTask(taskId, taskData) {
@@ -1168,23 +1218,25 @@ class SmartMentorChatbot {
         };
         
         try {
-            const response = await fetch(this.apiEndpoints.task(taskId), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updatedTask)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.task) {
-                    this.tasks[taskIndex] = this.normalizeTask(data.task);
+            if (window.api && window.api.updateTask) {
+                const saved = await window.api.updateTask(taskId, updatedTask);
+                this.tasks[taskIndex] = this.normalizeTask(saved);
+            } else {
+                const response = await fetch(this.apiEndpoints.task(taskId), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedTask)
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.task || data.data) {
+                        this.tasks[taskIndex] = this.normalizeTask(data.task || data.data);
+                    } else {
+                        this.tasks[taskIndex] = updatedTask;
+                    }
                 } else {
                     this.tasks[taskIndex] = updatedTask;
                 }
-            } else {
-                this.tasks[taskIndex] = updatedTask;
             }
         } catch (error) {
             console.warn('Task update API unavailable, saving locally');
@@ -1193,6 +1245,8 @@ class SmartMentorChatbot {
         
         this.saveToStorage();
         this.updateMotivationalMessage("Task updated successfully! ✅");
+        this.initAnalyticsAndCharts();
+        this.buildEventsFromData();
     }
     
     openTaskDetail(taskId) {
@@ -1252,12 +1306,13 @@ class SmartMentorChatbot {
         if (taskIndex === -1) return;
         
         try {
-            const response = await fetch(this.apiEndpoints.task(this.currentTaskId), {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok && response.status !== 404) {
-                console.warn('Task deletion API failed, removing locally');
+            if (window.api && window.api.deleteTask) {
+                await window.api.deleteTask(this.currentTaskId);
+            } else {
+                const response = await fetch(this.apiEndpoints.task(this.currentTaskId), { method: 'DELETE' });
+                if (!response.ok && response.status !== 404) {
+                    console.warn('Task deletion API failed, removing locally');
+                }
             }
         } catch (error) {
             console.warn('Task deletion API unavailable, removing locally');
@@ -1269,6 +1324,8 @@ class SmartMentorChatbot {
         this.closeModal('delete-confirm-modal');
         this.currentTaskId = null;
         this.updateMotivationalMessage("Task deleted.");
+        this.initAnalyticsAndCharts();
+        this.buildEventsFromData();
     }
     
     openPriorityOverride(taskId) {
@@ -1554,6 +1611,321 @@ class SmartMentorChatbot {
             return 0;
         }
         return dateA - dateB;
+    }
+
+    async initAnalyticsAndCharts() {
+        try {
+            if (window.api && window.api.getAnalytics) {
+                const analytics = await window.api.getAnalytics();
+                this.analytics = analytics;
+            } else {
+                this.analytics = this.deriveAnalyticsFromTasks();
+            }
+        } catch (e) {
+            this.analytics = this.deriveAnalyticsFromTasks();
+        }
+        this.initCharts();
+        this.renderProgressRing();
+    }
+
+    deriveAnalyticsFromTasks() {
+        const subjects = {};
+        let completed = 0; let inProgress = 0; let totalProgress = 0;
+        this.tasks.forEach(t => {
+            const key = t.subject || 'General';
+            if (!subjects[key]) subjects[key] = { estimated: 60, actual: 0, sessions: 0 };
+            subjects[key].sessions += 1;
+            subjects[key].actual += t.progress ? Math.round((t.progress / 100) * 60) : 0;
+            if (t.completed) completed += 1; else inProgress += 1;
+            totalProgress += t.progress || 0;
+        });
+        const avgProgress = this.tasks.length ? Math.round(totalProgress / this.tasks.length) : 0;
+        // Simple trends
+        const weekly = Array.from({ length: 7 }, (_, i) => Math.max(0, Math.round(avgProgress + (Math.random() * 20 - 10))));
+        const monthly = Array.from({ length: 30 }, () => Math.max(0, Math.round(avgProgress + (Math.random() * 20 - 10))));
+        const yearly = Array.from({ length: 12 }, () => Math.max(0, Math.round(avgProgress + (Math.random() * 20 - 10))));
+        return { subjects, totals: { completed, inProgress, avgProgress }, trend: { weekly, monthly, yearly } };
+    }
+
+    initCharts() {
+        this.updateTimeChart();
+        this.drawLineChart(this.currentProgressView || 'weekly');
+    }
+
+    updateTimeChart() {
+        const canvas = this.elements.timeChartCanvas;
+        if (!canvas || !this.analytics) return;
+        const ctx = canvas.getContext('2d');
+        const labels = Object.keys(this.analytics.subjects || {});
+        const values = labels.map(k => (this.analytics.subjects[k].actual || 0) / 60);
+        if (window.Chart) {
+            if (this.charts.timeChart) {
+                this.charts.timeChart.data.labels = labels;
+                this.charts.timeChart.data.datasets[0].data = values;
+                this.charts.timeChart.update();
+            } else {
+                this.charts.timeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Hours',
+                            data: values,
+                            backgroundColor: ['#1D9BF0', '#38BDF8', '#0F6EB2', '#10B981', '#F59E0B']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+        } else {
+            // Fallback simple bar drawing
+            const w = canvas.width = canvas.clientWidth; const h = canvas.height = 180;
+            ctx.clearRect(0, 0, w, h);
+            const max = Math.max(1, ...values);
+            const barW = w / (values.length * 1.5 || 1);
+            values.forEach((v, i) => {
+                const x = 20 + i * barW * 1.5;
+                const bh = (v / max) * (h - 40);
+                ctx.fillStyle = ['#1D9BF0', '#38BDF8', '#0F6EB2', '#10B981', '#F59E0B'][i % 5];
+                ctx.fillRect(x, h - bh - 20, barW, bh);
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') || '#64748b';
+                ctx.font = '12px system-ui';
+                ctx.fillText(labels[i] || '', x, h - 5);
+            });
+        }
+    }
+
+    handleProgressViewToggle(button) {
+        if (!button) return;
+        const view = button.getAttribute('data-view') || 'weekly';
+        const buttons = this.elements.progressViewButtons || [];
+        buttons.forEach(b => b.classList.remove('progress-view-toggle__button--active'));
+        button.classList.add('progress-view-toggle__button--active');
+        this.currentProgressView = view;
+        this.drawLineChart(view);
+    }
+
+    drawLineChart(view) {
+        const canvas = this.elements.progressGraphCanvas;
+        if (!canvas || !this.analytics) return;
+        const data = (this.analytics.trend && this.analytics.trend[view]) || [];
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width = canvas.clientWidth; const h = canvas.height = 180;
+        ctx.clearRect(0, 0, w, h);
+        const max = Math.max(100, ...data);
+        const pts = data.map((v, i) => [i / Math.max(1, data.length - 1) * (w - 40) + 20, h - 20 - (v / max) * (h - 40)]);
+        // Animate with requestAnimationFrame
+        let t = 0; const duration = 350; const start = performance.now();
+        const animate = (now) => {
+            t = Math.min(1, (now - start) / duration);
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 2; ctx.beginPath();
+            pts.forEach(([x, y], i) => {
+                const iy = h - 20 - (1 - t) * (h - 20 - y);
+                if (i === 0) ctx.moveTo(x, iy); else ctx.lineTo(x, iy);
+            });
+            ctx.stroke();
+            if (t < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+    }
+
+    renderProgressRing() {
+        const container = document.querySelector('#progressGraph .progress-summary');
+        if (!container || !this.analytics) return;
+        if (container.querySelector('.progress-ring')) return;
+        const avg = this.analytics.totals?.avgProgress || 0;
+        const size = 72; const stroke = 8; const r = (size - stroke) / 2; const c = 2 * Math.PI * r;
+        const el = document.createElement('div');
+        el.className = 'progress-ring';
+        el.style.display = 'flex'; el.style.alignItems = 'center'; el.style.gap = '12px';
+        el.innerHTML = `
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="#e5e7eb" stroke-width="${stroke}" fill="none" />
+                <circle class="progress-ring-bar" cx="${size/2}" cy="${size/2}" r="${r}" stroke="#10B981" stroke-width="${stroke}" fill="none" stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})" stroke-dasharray="${c}" stroke-dashoffset="${c}" />
+            </svg>
+            <div>
+                <div style="font-size:20px;font-weight:600;">${avg}%</div>
+                <div class="progress-summary__label">Avg Progress</div>
+            </div>`;
+        container.prepend(el);
+        const bar = el.querySelector('.progress-ring-bar');
+        const target = c * (1 - avg / 100);
+        let current = c; const duration = 400; const start = performance.now();
+        const step = (now) => {
+            const t = Math.min(1, (now - start) / duration);
+            const val = current + (target - c) * t; // animate to target
+            bar.setAttribute('stroke-dashoffset', String(val));
+            if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    async fetchTimetable() {
+        try {
+            if (window.api && window.api.getTimetable) {
+                const data = await window.api.getTimetable();
+                this.timetable = data;
+            }
+        } catch (e) {
+            this.timetable = this.timetable || null;
+        }
+        this.renderTimetable();
+        this.buildEventsFromData();
+    }
+
+    renderTimetable() {
+        const scheduleEl = this.elements.timetableSchedule;
+        if (!scheduleEl) return;
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        const entries = this.timetable?.days?.[today] || [];
+        scheduleEl.innerHTML = '';
+        if (!entries.length) {
+            const row = document.createElement('div');
+            row.className = 'timetable__row';
+            row.innerHTML = `<div class="timetable__time">—</div><div class="timetable__slot"><span class="timetable__slot-title">No classes</span></div>`;
+            scheduleEl.appendChild(row);
+            return;
+        }
+        entries.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'timetable__row';
+            row.innerHTML = `
+                <div class="timetable__time">${item.time}</div>
+                <div class="timetable__slot timetable__slot--active">
+                    <span class="timetable__slot-title">${item.subject}</span>
+                    <span class="timetable__slot-room">${item.room || ''}</span>
+                </div>`;
+            scheduleEl.appendChild(row);
+        });
+        const badge = document.querySelector('[data-current-day]');
+        if (badge) {
+            const day = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+            badge.textContent = `Today: ${day}`;
+        }
+    }
+
+    openTimetableEditor() {
+        if (!this.elements.timetableJsonInput) return;
+        const value = JSON.stringify(this.timetable || { days: {} }, null, 2);
+        this.elements.timetableJsonInput.value = value;
+        this.openModal('timetable-editor-modal');
+    }
+
+    async handleTimetableSave(e) {
+        e.preventDefault();
+        try {
+            const text = this.elements.timetableJsonInput.value.trim();
+            const parsed = text ? JSON.parse(text) : { days: {} };
+            let saved = parsed;
+            if (window.api && window.api.saveTimetable) {
+                const res = await window.api.saveTimetable(parsed);
+                saved = res?.data || res || parsed;
+            }
+            this.timetable = saved;
+            this.renderTimetable();
+            this.buildEventsFromData();
+            this.closeModal('timetable-editor-modal');
+            this.updateMotivationalMessage('Timetable saved successfully! ✅');
+        } catch (err) {
+            alert('Invalid JSON. Please check your timetable format.');
+        }
+    }
+
+    setupCalendar() {
+        this.calendarState = this.calendarState || { currentDate: new Date(), selectedDate: new Date(), eventsByDate: {} };
+        this.generateCalendarDays();
+        this.updateCalendarEventsList();
+    }
+
+    handleCalendarNavClick(dir) {
+        const date = this.calendarState.currentDate || new Date();
+        const month = date.getMonth();
+        this.calendarState.currentDate = new Date(date.getFullYear(), month + (dir === 'next' ? 1 : -1), 1);
+        this.generateCalendarDays();
+    }
+
+    selectCalendarDate(date) {
+        this.calendarState.selectedDate = date;
+        this.generateCalendarDays();
+        this.updateCalendarEventsList();
+    }
+
+    generateCalendarDays() {
+        const container = this.elements.calendarDaysContainer;
+        if (!container) return;
+        const current = this.calendarState.currentDate || new Date();
+        const year = current.getFullYear(); const month = current.getMonth();
+        const firstDay = new Date(year, month, 1); const startDay = firstDay.getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const selected = this.calendarState.selectedDate || new Date();
+        const labelEl = this.elements.calendarMonthLabel;
+        if (labelEl) labelEl.textContent = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        container.innerHTML = '';
+        // Fill blanks
+        for (let i = 0; i < startDay; i++) {
+            const blank = document.createElement('div'); blank.className = 'calendar__day calendar__day--empty'; container.appendChild(blank);
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const cell = document.createElement('button');
+            cell.className = 'calendar__day';
+            const dateObj = new Date(year, month, d);
+            cell.textContent = String(d);
+            cell.setAttribute('type', 'button');
+            if (dateObj.toDateString() === selected.toDateString()) cell.classList.add('calendar__day--selected');
+            const key = dateObj.toISOString().slice(0, 10);
+            const events = this.calendarState.eventsByDate?.[key] || [];
+            if (events.length) {
+                const dot = document.createElement('span'); dot.className = 'calendar__day-dot'; cell.appendChild(dot);
+            }
+            cell.addEventListener('click', () => this.selectCalendarDate(dateObj));
+            container.appendChild(cell);
+        }
+    }
+
+    buildEventsFromData() {
+        const byDate = {};
+        // Tasks due dates
+        this.tasks.forEach(t => {
+            if (t.dueDate) {
+                const key = new Date(t.dueDate).toISOString().slice(0, 10);
+                byDate[key] = byDate[key] || [];
+                byDate[key].push({ type: 'task', title: t.title, date: new Date(t.dueDate) });
+            }
+        });
+        // You could also add timetable entries mapped to current week
+        this.calendarState.eventsByDate = byDate;
+    }
+
+    updateCalendarEventsList() {
+        const list = this.elements.calendarEventsList;
+        if (!list) return;
+        list.innerHTML = '';
+        const sel = this.calendarState.selectedDate || new Date();
+        const key = sel.toISOString().slice(0, 10);
+        const evts = this.calendarState.eventsByDate?.[key] || [];
+        if (!evts.length) {
+            const empty = document.createElement('div');
+            empty.className = 'calendar-event';
+            empty.innerHTML = '<div class="calendar-event__content"><span class="calendar-event__title">No events</span></div>';
+            list.appendChild(empty);
+            return;
+        }
+        evts.forEach((e) => {
+            const item = document.createElement('div');
+            item.className = 'calendar-event';
+            item.innerHTML = `
+                <div class="calendar-event__marker" style="background-color:#4F46E5;"></div>
+                <div class="calendar-event__content">
+                    <span class="calendar-event__title">${e.title}</span>
+                    <span class="calendar-event__date">${sel.toDateString()}</span>
+                </div>`;
+            list.appendChild(item);
+        });
     }
 }
 

@@ -9,6 +9,9 @@ const taskRoutes = require('./routes/taskRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const studyPlanRoutes = require('./routes/studyPlanRoutes');
 const motivationRoutes = require('./routes/motivationRoutes');
+const timetableRoutes = require('./routes/timetableRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const assessmentsRoutes = require('./routes/assessmentsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,7 +37,10 @@ app.get('/', (req, res) => {
       tasks: '/api/tasks',
       chat: '/api/chat',
       studyPlans: '/api/study-plans',
-      motivation: '/api/motivation'
+      motivation: '/api/motivation',
+      timetable: '/api/timetable',
+      analytics: '/api/analytics',
+      assessments: '/api/assessments'
     }
   });
 });
@@ -52,6 +58,9 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/study-plans', studyPlanRoutes);
 app.use('/api/motivation', motivationRoutes);
+app.use('/api/timetable', timetableRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/assessments', assessmentsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
