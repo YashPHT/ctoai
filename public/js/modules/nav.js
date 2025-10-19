@@ -41,9 +41,16 @@
 
     // Nav link activation via delegation
     U.delegate('#sidebar', 'click', '.sidebar__nav-link', (e, el) => {
-      e.preventDefault();
-      setActiveNav(el);
-      closeSidebarIfMobile();
+      const href = el.getAttribute('href');
+      const isAnchor = !href || href === '#' || href.startsWith('#');
+      if (isAnchor) {
+        e.preventDefault();
+        setActiveNav(el);
+        closeSidebarIfMobile();
+      } else {
+        // allow navigation; still close sidebar on mobile for smoother UX
+        closeSidebarIfMobile();
+      }
     });
 
     // Outside click to close on mobile
@@ -76,6 +83,22 @@
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', document.body.classList.contains('sidebar-open') ? 'true' : 'false');
       }
     });
+
+    // Set active nav based on current location on load
+    try {
+      const path = (window.location.pathname.split('/').pop() || 'index.html').toLowerCase();
+      const links = Array.from(document.querySelectorAll('.sidebar__nav-link'));
+      const match = links.find((a) => {
+        const href = (a.getAttribute('href') || '').toLowerCase();
+        if (!href) return false;
+        if (href === '#' || href.startsWith('#')) return false;
+        const file = href.split('/').pop();
+        if (!file) return false;
+        if (path === '' && (file === 'index.html' || file === '/')) return true;
+        return file === path;
+      });
+      if (match) setActiveNav(match);
+    } catch (_) {}
   }
 
   window.DashboardNav = { init: bind };

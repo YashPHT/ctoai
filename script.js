@@ -123,7 +123,7 @@ class SmartMentorChatbot {
             calendarDaysContainer: document.querySelector('[data-calendar-days]'),
             calendarMonthLabel: document.querySelector('[data-current-month]'),
             calendarNavButtons: document.querySelectorAll('[data-calendar-nav]'),
-            calendarEventsList: document.querySelector('[data-calendar-events] .calendar-events__list'),
+            calendarEventsList: document.getElementById('upcoming-events-list') || document.querySelector('[data-calendar-events] .calendar-events__list'),
             timetableSchedule: document.querySelector('[data-timetable-container] .timetable__schedule'),
             timetableEditButton: document.querySelector('[data-action="edit-timetable"]'),
             timetableEditorModal: document.getElementById('timetable-editor-modal'),
@@ -131,7 +131,13 @@ class SmartMentorChatbot {
             timetableJsonInput: document.getElementById('timetable-json-input'),
             chatbotFab: document.getElementById('chatbot-fab'),
             resetChat: document.getElementById('reset-chat'),
-            chatAnnouncer: document.getElementById('chat-aria-live')
+            chatAnnouncer: document.getElementById('chat-aria-live'),
+            navAiMentor: document.getElementById('nav-ai-mentor'),
+            addTaskFab: document.getElementById('add-task-fab'),
+            dayDetailModal: document.getElementById('day-detail-modal'),
+            dayDetailDate: document.getElementById('day-detail-date'),
+            bulkSelectAll: document.getElementById('bulk-select-all'),
+            bulkComplete: document.getElementById('bulk-complete')
         };
     }
     
@@ -217,8 +223,35 @@ class SmartMentorChatbot {
         if (this.elements.addTaskButton) {
             this.elements.addTaskButton.addEventListener('click', () => this.openTaskForm());
         }
+        if (this.elements.addTaskFab) {
+            this.elements.addTaskFab.addEventListener('click', () => this.openTaskForm());
+        }
+        if (this.elements.navAiMentor) {
+            this.elements.navAiMentor.addEventListener('click', (e) => { e.preventDefault(); this.openChatbot(); });
+        }
         if (this.elements.taskForm) {
             this.elements.taskForm.addEventListener('submit', (e) => this.handleTaskFormSubmit(e));
+            this.elements.taskForm.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    this.elements.taskForm.dispatchEvent(new Event('submit'));
+                }
+            });
+        }
+        if (this.elements.bulkSelectAll && this.elements.taskList) {
+            this.elements.bulkSelectAll.addEventListener('change', () => {
+                const checked = this.elements.bulkSelectAll.checked;
+                this.elements.taskList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = checked;
+                    cb.dispatchEvent(new Event('change'));
+                });
+                if (this.elements.bulkComplete) this.elements.bulkComplete.disabled = !checked;
+            });
+        }
+        if (this.elements.bulkComplete) {
+            this.elements.bulkComplete.addEventListener('click', () => {
+                console.log('Bulk complete clicked (stub)');
+            });
         }
         if (this.elements.taskFormProgress) {
             this.elements.taskFormProgress.addEventListener('input', () => this.updateTaskFormProgressValue());
@@ -306,6 +339,22 @@ class SmartMentorChatbot {
             this.elements.calendarNavButtons.forEach(btn => {
                 btn.addEventListener('click', () => this.handleCalendarNavClick(btn.getAttribute('data-calendar-nav')));
             });
+        }
+
+        // KPI drilldown hooks (stub)
+        try {
+            document.querySelectorAll('.kpi-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const key = card.getAttribute('data-kpi') || 'kpi';
+                    console.log('KPI drilldown clicked:', key);
+                });
+            });
+        } catch (_) {}
+
+        // Enable swipe-to-complete on mobile (progressive enhancement)
+        if (this.isMobile()) {
+            this.enableSwipeToComplete(this.elements.priorityTaskList);
+            this.enableSwipeToComplete(this.elements.taskList);
         }
     }
     
@@ -1186,6 +1235,39 @@ class SmartMentorChatbot {
             document.removeEventListener('focusin', this._chatFocusinHandler);
             this._chatFocusinHandler = null;
         }
+    }
+
+    enableSwipeToComplete(container) {
+        if (!container) return;
+        let startX = 0; let active = null;
+        container.addEventListener('touchstart', (e) => {
+            const item = e.target.closest('.assignment-item');
+            if (!item) return;
+            active = item; startX = e.touches[0].clientX;
+        }, { passive: true });
+        container.addEventListener('touchmove', (e) => {
+            if (!active) return;
+            const dx = e.touches[0].clientX - startX;
+            if (dx > 0) {
+                active.style.transform = `translateX(${Math.min(dx, 80)}px)`;
+                active.style.transition = 'none';
+            }
+        }, { passive: true });
+        const end = () => {
+            if (!active) return;
+            const tr = parseFloat((active.style.transform || '').replace(/[^0-9.-]/g, '')) || 0;
+            active.style.transition = '';
+            if (tr > 60) {
+                const cb = active.querySelector('input[type="checkbox"]');
+                if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+                active.style.transform = 'translateX(0)';
+            } else {
+                active.style.transform = 'translateX(0)';
+            }
+            active = null;
+        };
+        container.addEventListener('touchend', end);
+        container.addEventListener('touchcancel', end);
     }
     
     scrollToBottom() {
@@ -2113,9 +2195,16 @@ class SmartMentorChatbot {
             if (events.length) {
                 const dot = document.createElement('span'); dot.className = 'calendar__day-dot'; cell.appendChild(dot);
             }
-            cell.addEventListener('click', () => this.selectCalendarDate(dateObj));
+            cell.addEventListener('click', () => { this.selectCalendarDate(dateObj); this.openDayModal(dateObj); });
             container.appendChild(cell);
         }
+    }
+
+    openDayModal(dateObj) {
+        if (!this.elements.dayDetailModal || !this.elements.dayDetailDate) return;
+        const d = dateObj || new Date();
+        this.elements.dayDetailDate.textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        this.openModal('day-detail-modal');
     }
 
     buildEventsFromData() {
