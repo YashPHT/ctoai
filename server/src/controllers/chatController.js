@@ -1,5 +1,3 @@
-const ChatHistory = require('../models/ChatHistory');
-
 const chatController = {
   sendMessage: async (req, res) => {
     try {
