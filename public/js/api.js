@@ -133,10 +133,14 @@
       } finally { this.setLoading(false); }
     },
 
-    async getAnalytics() {
+    async getAnalytics(opts = {}) {
       this.setError(null); this.setLoading(true);
       try {
-        const data = await fetchWithRetry('/api/analytics', { method: 'GET', headers: { 'Accept': 'application/json' } }, {
+        const params = new URLSearchParams();
+        const period = (opts && opts.period) ? String(opts.period).toLowerCase() : null;
+        if (period && ['day','week','month'].includes(period)) params.set('period', period);
+        const url = '/api/analytics' + (params.toString() ? `?${params.toString()}` : '');
+        const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Accept': 'application/json' } }, {
           onError: (e) => this.setError(e),
           onFinalError: (e) => this.setError(e),
           onLoadingChange: (v) => this.setLoading(v)

@@ -52,8 +52,58 @@
         </div>
       </header>
       <main class="dashboard-content" role="main">
+        <section class="kpi-grid" role="region" aria-label="Key performance indicators">
+          <div class="kpi-card" data-kpi="total" tabindex="0" title="Total number of tasks">
+            <div class="kpi-content"><div class="kpi-label">Total Tasks</div><div class="kpi-value" id="kpi-total">—</div></div>
+          </div>
+          <div class="kpi-card" data-kpi="completed" tabindex="0" title="Tasks marked as completed">
+            <div class="kpi-content"><div class="kpi-label">Completed</div><div class="kpi-value" id="kpi-completed">—</div></div>
+          </div>
+          <div class="kpi-card" data-kpi="rate" tabindex="0" title="Percent of tasks marked completed">
+            <div class="kpi-donut" style="--kpi-progress: 0%" aria-hidden="true"></div>
+            <div class="kpi-content"><div class="kpi-label">Completion Rate</div><div class="kpi-value" id="kpi-rate">—%</div></div>
+          </div>
+          <div class="kpi-card" data-kpi="subjects" tabindex="0" title="Number of subjects with tasks">
+            <div class="kpi-content"><div class="kpi-label">Subjects</div><div class="kpi-value" id="kpi-subjects">—</div></div>
+          </div>
+        </section>
+
         <div class="dashboard-grid">
-          <section class="dashboard-card" aria-labelledby="analyticsTitle"><div class="dashboard-card__header"><h2 class="dashboard-card__title" id="analyticsTitle">Analytics Overview</h2></div><div class="dashboard-card__content"><p style="color:var(--text-secondary)">This page is a placeholder for the Analytics module.</p></div></section>
+          <section class="dashboard-card" aria-labelledby="trendTitle">
+            <div class="dashboard-card__header">
+              <div class="dashboard-card__title-group">
+                <h2 class="dashboard-card__title" id="trendTitle">Tasks Due Over Time</h2>
+              </div>
+              <div class="progress-view-toggle" role="group" aria-label="Period selector">
+                <button class="progress-view-toggle__button progress-view-toggle__button--active" data-period="day" aria-pressed="true">Day</button>
+                <button class="progress-view-toggle__button" data-period="week" aria-pressed="false">Week</button>
+                <button class="progress-view-toggle__button" data-period="month" aria-pressed="false">Month</button>
+              </div>
+            </div>
+            <div class="dashboard-card__content" style="min-height:260px">
+              <div id="trend-loading" class="skeleton" aria-hidden="true"></div>
+              <canvas id="trendChart" class="chart-enter" role="img" aria-label="Area chart showing tasks due over selected period" style="display:none; width:100%; height:220px"></canvas>
+              <div id="trend-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No data</h3><p>There are no tasks due in this period.</p></div>
+            </div>
+          </section>
+
+          <section class="dashboard-card" aria-labelledby="subjectSplitTitle">
+            <div class="dashboard-card__header"><h2 class="dashboard-card__title" id="subjectSplitTitle">Tasks by Subject</h2></div>
+            <div class="dashboard-card__content" style="min-height:260px">
+              <div id="subject-loading" class="skeleton" aria-hidden="true"></div>
+              <canvas id="subjectDoughnut" class="chart-enter" role="img" aria-label="Doughnut chart showing distribution of tasks by subject" style="display:none; width:100%; height:220px"></canvas>
+              <div id="subject-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No subjects yet</h3><p>Create tasks and assign subjects to see this breakdown.</p></div>
+            </div>
+          </section>
+
+          <section class="dashboard-card" aria-labelledby="hoursTitle">
+            <div class="dashboard-card__header"><h2 class="dashboard-card__title" id="hoursTitle">Hours by Subject</h2></div>
+            <div class="dashboard-card__content" style="min-height:260px">
+              <div id="hours-loading" class="skeleton" aria-hidden="true"></div>
+              <canvas id="hoursBar" class="chart-enter" role="img" aria-label="Bar chart comparing estimated and actual hours by subject" style="display:none; width:100%; height:220px"></canvas>
+              <div id="hours-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No hour data</h3><p>Add estimated (and actual) durations on tasks to see hours per subject.</p></div>
+            </div>
+          </section>
         </div>
       </main>
     </div>
@@ -76,11 +126,13 @@
     <div class="modal-content"><div class="modal-header"><h2 id="day-detail-title">Day Summary</h2><button type="button" class="icon-button modal-close" data-close-modal="day-detail-modal" aria-label="Close day details"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div><div class="modal-body"><p id="day-detail-date">—</p></div><div class="modal-actions"><button type="button" class="secondary-button" disabled>Add Event (stub)</button><button type="button" class="primary-button" data-close-modal="day-detail-modal">Close</button></div></div>
   </div>
 
-  <script src="public/js/api.js"></script>
-  <script src="public/js/chatbot.js"></script>
-  <script src="script.js"></script>
-  <script src="public/js/modules/utils.js"></script>
-  <script src="public/js/modules/nav.js"></script>
-  <script src="public/js/modules/main.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="public/js/api.js"></script>
+  <script defer src="public/js/chatbot.js"></script>
+  <script defer src="script.js"></script>
+  <script defer src="public/js/modules/utils.js"></script>
+  <script defer src="public/js/modules/nav.js"></script>
+  <script defer src="public/js/modules/main.js"></script>
+  <script defer src="public/js/modules/analytics-page.js"></script>
 </body>
 </html>
