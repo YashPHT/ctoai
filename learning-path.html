@@ -55,8 +55,84 @@
         </div>
       </header>
       <main class="dashboard-content" role="main">
+        <section class="kpi-grid" role="region" aria-label="Learning path summary">
+          <div class="kpi-card" tabindex="0" title="Total number of tasks">
+            <div class="kpi-content"><div class="kpi-label">Total Tasks</div><div class="kpi-value" id="lp-kpi-total">—</div></div>
+          </div>
+          <div class="kpi-card" tabindex="0" title="Overall completion rate">
+            <div class="kpi-donut" style="--kpi-progress: 0%" aria-hidden="true"></div>
+            <div class="kpi-content"><div class="kpi-label">Completion</div><div class="kpi-value" id="lp-kpi-completion">—%</div></div>
+          </div>
+          <div class="kpi-card" tabindex="0" title="Number of subjects with tasks">
+            <div class="kpi-content"><div class="kpi-label">Subjects</div><div class="kpi-value" id="lp-kpi-subjects">—</div></div>
+          </div>
+        </section>
+
         <div class="dashboard-grid">
-          <section class="dashboard-card" aria-labelledby="lpComingTitle"><div class="dashboard-card__header"><h2 class="dashboard-card__title" id="lpComingTitle">Learning Path</h2></div><div class="dashboard-card__content"><p style="color:var(--text-secondary)">This page is a placeholder for the Learning Path module.</p></div></section>
+          <section class="dashboard-card" aria-labelledby="lpPriorityTitle">
+            <div class="dashboard-card__header">
+              <div class="dashboard-card__title-group">
+                <h2 class="dashboard-card__title" id="lpPriorityTitle">Priority Tasks</h2>
+                <span class="dashboard-card__badge" id="lp-priority-count">—</span>
+              </div>
+              <a class="icon-button" href="assignments.html" aria-label="Go to assignments">↗</a>
+            </div>
+            <div class="dashboard-card__content" style="padding:0 1.25rem 1.25rem">
+              <div id="priority-task-list" class="assignment-list" role="list"></div>
+              <div id="lp-priority-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No priority tasks</h3><p>Create tasks and mark them high priority to see them here.</p></div>
+            </div>
+          </section>
+
+          <section class="dashboard-card" aria-labelledby="lpPlanTitle">
+            <div class="dashboard-card__header">
+              <div class="dashboard-card__title-group">
+                <h2 class="dashboard-card__title" id="lpPlanTitle">Study Plan</h2>
+              </div>
+              <div class="progress-view-toggle" role="group" aria-label="Plan view selector">
+                <button class="progress-view-toggle__button progress-view-toggle__button--active" data-lp-plan="day" aria-pressed="true">Day</button>
+                <button class="progress-view-toggle__button" data-lp-plan="week" aria-pressed="false">Week</button>
+              </div>
+            </div>
+            <div class="dashboard-card__content">
+              <div id="lp-plan-loading" class="skeleton" aria-hidden="true"></div>
+              <div id="lp-plan-grid" class="timetable-grid" style="display:none"></div>
+              <div id="lp-plan-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No plan yet</h3><p>Add tasks with estimates or due dates to generate a study plan.</p></div>
+            </div>
+          </section>
+
+          <section class="dashboard-card" aria-labelledby="lpTrendTitle">
+            <div class="dashboard-card__header">
+              <div class="dashboard-card__title-group"><h2 class="dashboard-card__title" id="lpTrendTitle">Tasks Over Time</h2></div>
+              <div class="progress-view-toggle" role="group" aria-label="Period selector">
+                <button class="progress-view-toggle__button progress-view-toggle__button--active" data-period="day" aria-pressed="true">Day</button>
+                <button class="progress-view-toggle__button" data-period="week" aria-pressed="false">Week</button>
+                <button class="progress-view-toggle__button" data-period="month" aria-pressed="false">Month</button>
+              </div>
+            </div>
+            <div class="dashboard-card__content" style="min-height:260px">
+              <div id="lp-trend-loading" class="skeleton" aria-hidden="true"></div>
+              <canvas id="lpTrendChart" class="chart-enter" role="img" aria-label="Area chart showing tasks over selected period" style="display:none; width:100%; height:220px"></canvas>
+              <div id="lp-trend-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No data</h3><p>There are no tasks in this period.</p></div>
+            </div>
+          </section>
+
+          <section class="dashboard-card" aria-labelledby="lpSubjectSplitTitle">
+            <div class="dashboard-card__header"><h2 class="dashboard-card__title" id="lpSubjectSplitTitle">Tasks by Subject</h2></div>
+            <div class="dashboard-card__content" style="min-height:260px">
+              <div id="lp-subject-loading" class="skeleton" aria-hidden="true"></div>
+              <canvas id="lpSubjectDoughnut" class="chart-enter" role="img" aria-label="Doughnut chart showing distribution of tasks by subject" style="display:none; width:100%; height:220px"></canvas>
+              <div id="lp-subject-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No subjects yet</h3><p>Create tasks and assign subjects to see this breakdown.</p></div>
+            </div>
+          </section>
+
+          <section class="dashboard-card" aria-labelledby="lpHoursTitle">
+            <div class="dashboard-card__header"><h2 class="dashboard-card__title" id="lpHoursTitle">Hours by Subject</h2></div>
+            <div class="dashboard-card__content" style="min-height:260px">
+              <div id="lp-hours-loading" class="skeleton" aria-hidden="true"></div>
+              <canvas id="lpHoursBar" class="chart-enter" role="img" aria-label="Bar chart comparing estimated and actual hours by subject" style="display:none; width:100%; height:220px"></canvas>
+              <div id="lp-hours-empty" class="empty-state" style="display:none"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="15" x2="16" y2="15"></line></svg><h3>No hour data</h3><p>Add estimated (and actual) durations on tasks to see hours per subject.</p></div>
+            </div>
+          </section>
         </div>
       </main>
     </div>
@@ -92,11 +168,13 @@
     <div class="modal-content"><div class="modal-header"><h2 id="day-detail-title">Day Summary</h2><button type="button" class="icon-button modal-close" data-close-modal="day-detail-modal" aria-label="Close day details"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div><div class="modal-body"><p id="day-detail-date">—</p></div><div class="modal-actions"><button type="button" class="secondary-button" disabled>Add Event (stub)</button><button type="button" class="primary-button" data-close-modal="day-detail-modal">Close</button></div></div>
   </div>
 
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="public/js/api.js"></script>
   <script src="public/js/chatbot.js"></script>
   <script src="script.js"></script>
   <script src="public/js/modules/utils.js"></script>
   <script src="public/js/modules/nav.js"></script>
   <script src="public/js/modules/main.js"></script>
+  <script defer src="public/js/modules/learning-path-page.js"></script>
 </body>
 </html>
