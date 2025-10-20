@@ -1405,20 +1405,6 @@ class SmartMentorChatbot {
     
     openTaskForm(taskId = null) {
         this.currentTaskId = taskId;
-        const dueInput = this.elements.taskFormDueDate;
-        const today = this.todayYMD();
-        if (dueInput) {
-            dueInput.setAttribute('min', today);
-            // Ensure error container
-            let err = dueInput.parentElement && dueInput.parentElement.querySelector('#task-form-due-date-error');
-            if (!err && dueInput.parentElement) {
-                err = document.createElement('div');
-                err.id = 'task-form-due-date-error';
-                err.className = 'form-error';
-                err.setAttribute('aria-live', 'polite');
-                dueInput.parentElement.appendChild(err);
-            }
-        }
         
         if (taskId) {
             const task = this.tasks.find(t => t.id === taskId);
@@ -1428,10 +1414,7 @@ class SmartMentorChatbot {
                 this.elements.taskFormTitleInput.value = task.title;
                 this.elements.taskFormDescription.value = task.description || '';
                 this.elements.taskFormSubject.value = task.subject || '';
-                if (dueInput) {
-                    const ymd = task.dueDate ? (/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? task.dueDate : this.ymdFromISO(task.dueDate)) : '';
-                    dueInput.value = ymd;
-                }
+                this.elements.taskFormDueDate.value = task.dueDate ? task.dueDate.split('T')[0] : '';
                 this.elements.taskFormPriority.value = task.priority;
                 this.elements.taskFormProgress.value = task.progress || 0;
                 this.updateTaskFormProgressValue();
@@ -1441,25 +1424,10 @@ class SmartMentorChatbot {
             this.elements.taskFormTitle.textContent = 'Add Task';
             this.elements.taskFormId.value = '';
             this.elements.taskForm.reset();
-            if (dueInput) dueInput.value = '';
             this.elements.taskFormPriority.value = 'medium';
             this.elements.taskFormProgress.value = 0;
             this.updateTaskFormProgressValue();
             this.elements.taskFormSubmit.textContent = 'Save Task';
-        }
-        
-        // Setup/refresh date picker
-        if (dueInput && window.DatePicker) {
-            if (!this._datePicker) {
-                this._datePicker = new window.DatePicker(dueInput, { min: today, onSelect: () => this.clearDueDateError() });
-            } else {
-                this._datePicker.min = today;
-            }
-            if (!dueInput._boundValidate) {
-                dueInput.addEventListener('change', () => this.validateDueDate());
-                dueInput.addEventListener('input', () => this.clearDueDateError());
-                dueInput._boundValidate = true;
-            }
         }
         
         this.openModal('task-form-modal');
@@ -1470,50 +1438,18 @@ class SmartMentorChatbot {
             this.elements.taskFormProgressValue.textContent = this.elements.taskFormProgress.value + '%';
         }
     }
-
-    validateDueDate() {
-        const input = this.elements.taskFormDueDate;
-        if (!input) return true;
-        const min = input.getAttribute('min') || '';
-        const val = input.value || '';
-        const errEl = input.parentElement && input.parentElement.querySelector('#task-form-due-date-error');
-        if (val && min && val < min) {
-            const msg = 'Please choose a due date that is today or later.';
-            try { input.setCustomValidity(msg); } catch (_) {}
-            if (errEl) errEl.textContent = msg;
-            return false;
-        }
-        try { input.setCustomValidity(''); } catch (_) {}
-        if (errEl) errEl.textContent = '';
-        return true;
-    }
-
-    clearDueDateError() {
-        const input = this.elements.taskFormDueDate;
-        if (!input) return;
-        const errEl = input.parentElement && input.parentElement.querySelector('#task-form-due-date-error');
-        try { input.setCustomValidity(''); } catch (_) {}
-        if (errEl) errEl.textContent = '';
-    }
     
     async handleTaskFormSubmit(e) {
         e.preventDefault();
         
-        const dueInput = this.elements.taskFormDueDate;
-        if (!this.validateDueDate()) {
-            if (dueInput && typeof dueInput.reportValidity === 'function') dueInput.reportValidity();
-            return;
-        }
-        
         const taskId = this.elements.taskFormId.value;
-        const dueYMD = dueInput ? (dueInput.value || '') : '';
         const taskData = {
             title: this.elements.taskFormTitleInput.value.trim(),
             description: this.elements.taskFormDescription.value.trim(),
             subject: this.elements.taskFormSubject.value.trim(),
-            dueDate: dueYMD,
+            dueDate: this.elements.taskFormDueDate.value,
             priority: this.elements.taskFormPriority.value.toLowerCase(),
-            progress: parseInt(this.elements.taskFormProgress.value, 10) || 0,
+            progress: parseInt(this.elements.taskFormProgress.value),
             completed: false,
             updatedAt: new Date().toISOString()
         };
@@ -1529,29 +1465,12 @@ class SmartMentorChatbot {
     }
     
     async createTask(taskData) {
-        const toTitle = (p) => ({ high: 'High', medium: 'Medium', low: 'Low', urgent: 'Urgent' }[(p || '').toLowerCase()] || 'Medium');
-        const dueISO = taskData.dueDate ? this.isoFromYMD(taskData.dueDate) : undefined;
-        let created = null;
-        if (window.api && window.api.createTask) {
-            try {
-                const apiResp = await window.api.createTask({
-                    title: taskData.title,
-                    description: taskData.description || '',
-                    subject: taskData.subject || '',
-                    dueDate: dueISO,
-                    priority: toTitle(taskData.priority),
-                    estimatedDuration: null
-                });
-                created = this.normalizeTask(apiResp);
-            } catch (e) {
-                // Fallback to local if API fails
-                created = this.normalizeTask({ ...taskData, createdAt: new Date().toISOString(), dueDate: taskData.dueDate });
-            }
-        } else {
-            created = this.normalizeTask({ ...taskData, createdAt: new Date().toISOString(), dueDate: taskData.dueDate });
-        }
+        const task = this.normalizeTask({
+            ...taskData,
+            createdAt: new Date().toISOString()
+        });
         
-        this.tasks.push(created);
+        this.tasks.push(task);
         this.saveToStorage();
         this.updateMotivationalMessage("Great! Task created successfully! 🎉");
         this.initAnalyticsAndCharts();
@@ -1561,30 +1480,13 @@ class SmartMentorChatbot {
     async updateTask(taskId, taskData) {
         const taskIndex = this.tasks.findIndex(t => t.id === taskId);
         if (taskIndex === -1) return;
-        const toTitle = (p) => ({ high: 'High', medium: 'Medium', low: 'Low', urgent: 'Urgent' }[(p || '').toLowerCase()] || 'Medium');
-        const dueISO = taskData.dueDate ? this.isoFromYMD(taskData.dueDate) : undefined;
-
-        let next = null;
-        if (window.api && window.api.updateTask) {
-            try {
-                const apiResp = await window.api.updateTask(taskId, {
-                    title: taskData.title,
-                    description: taskData.description || '',
-                    subject: taskData.subject || '',
-                    dueDate: dueISO,
-                    priority: toTitle(taskData.priority),
-                    status: undefined,
-                    estimatedDuration: null
-                });
-                next = this.normalizeTask(apiResp);
-            } catch (e) {
-                next = this.normalizeTask({ ...this.tasks[taskIndex], ...taskData });
-            }
-        } else {
-            next = this.normalizeTask({ ...this.tasks[taskIndex], ...taskData });
-        }
         
-        this.tasks[taskIndex] = next;
+        const updatedTask = this.normalizeTask({
+            ...this.tasks[taskIndex],
+            ...taskData
+        });
+        
+        this.tasks[taskIndex] = updatedTask;
         this.saveToStorage();
         this.updateMotivationalMessage("Task updated successfully! ✅");
         this.initAnalyticsAndCharts();
@@ -1776,45 +1678,11 @@ class SmartMentorChatbot {
     
     formatDate(dateString) {
         if (!dateString) return '—';
-        // Support both ISO and YYYY-MM-DD without timezone shifting
-        let ymd = '';
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-            ymd = dateString;
-        } else {
-            const d = new Date(dateString);
-            if (isNaN(d.getTime())) return '—';
-            const y = d.getUTCFullYear();
-            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(d.getUTCDate()).padStart(2, '0');
-            ymd = `${y}-${m}-${day}`;
-        }
-        const [y, m, d] = ymd.split('-').map(n => parseInt(n, 10));
-        const local = new Date(y, m - 1, d);
-        return local.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    },
-
-    isoFromYMD(ymd) {
-        if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return '';
-        const [y, m, d] = ymd.split('-').map(n => parseInt(n, 10));
-        return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0)).toISOString();
-    },
-
-    ymdFromISO(iso) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '';
-        const y = d.getUTCFullYear();
-        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(d.getUTCDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    },
-
-    todayYMD() {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        const date = new Date(dateString);
+        // Add a day to correct for timezone issues with date inputs
+        date.setDate(date.getDate() + 1);
+        const options = { month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
     }
     
     formatDateTime(dateString) {
