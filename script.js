@@ -35,6 +35,9 @@ class SmartMentorChatbot {
         this.charts = {};
         this.calendarState = { currentDate: new Date(), selectedDate: new Date(), eventsByDate: {} };
         this.timetable = null;
+        this.events = [];
+        this._eventsLoaded = false;
+        this._eventsLoading = false;
         
         this.boundHandleViewportChange = this.handleViewportChange.bind(this);
         this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
@@ -1600,18 +1603,20 @@ class SmartMentorChatbot {
         return el;
     }
     
-    formatDate(dateString) {
-        if (!dateString) return '—';
-        const date = new Date(dateString);
-        // Add a day to correct for timezone issues with date inputs
-        date.setDate(date.getDate() + 1);
+    formatDate(dateInput) {
+        if (!dateInput) return '—';
+        const DU = window.DateUtils || null;
+        const date = DU && DU.parse ? DU.parse(dateInput) : new Date(dateInput);
+        if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
         const options = { month: 'short', day: 'numeric' };
         return date.toLocaleDateString('en-US', options);
     }
     
-    formatDateTime(dateString) {
-        if (!dateString) return '—';
-        const date = new Date(dateString);
+    formatDateTime(dateInput) {
+        if (!dateInput) return '—';
+        const DU = window.DateUtils || null;
+        const date = DU && DU.parse ? DU.parse(dateInput) : new Date(dateInput);
+        if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
         const options = { 
             year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
@@ -2166,11 +2171,13 @@ class SmartMentorChatbot {
         this.calendarState.selectedDate = date;
         this.generateCalendarDays();
         this.updateCalendarEventsList();
+        this.openDayModal(date);
     }
 
     generateCalendarDays() {
         const container = this.elements.calendarDaysContainer;
         if (!container) return;
+        const DU = window.DateUtils || null;
         const current = this.calendarState.currentDate || new Date();
         const year = current.getFullYear(); const month = current.getMonth();
         const firstDay = new Date(year, month, 1); const startDay = firstDay.getDay();
@@ -2182,24 +2189,36 @@ class SmartMentorChatbot {
         const monthName = current.toLocaleDateString('en-US', { month: 'long' });
         
         for (let i = 0; i < startDay; i++) {
-            container.insertAdjacentHTML('beforeend', '<div class="calendar__day calendar__day--empty"></div>');
+            container.insertAdjacentHTML('beforeend', '<div class="calendar__day calendar__day--empty" role="presentation" aria-hidden="true"></div>');
         }
+        let firstFocusableSet = false;
         for (let d = 1; d <= daysInMonth; d++) {
             const dateObj = new Date(year, month, d);
-            const key = dateObj.toISOString().slice(0, 10);
-            const events = this.calendarState.eventsByDate?.[key] || [];
+            const key = DU && DU.toLocalDateKey ? DU.toLocalDateKey(dateObj) : dateObj.toISOString().slice(0, 10);
+            const items = this.calendarState.eventsByDate?.[key] || [];
+            const taskCount = items.filter(i => i.type === 'task').length;
+            const eventCount = items.filter(i => i.type !== 'task').length;
             
             const cell = document.createElement('button');
             cell.className = 'calendar__day';
+            cell.setAttribute('role', 'gridcell');
+            cell.setAttribute('data-date', key);
             cell.textContent = d;
             const isSelected = dateObj.toDateString() === selected.toDateString();
             if (isSelected) cell.classList.add('calendar__day--selected');
             cell.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-            const eventSuffix = events.length ? `, ${events.length} event${events.length > 1 ? 's' : ''}` : '';
-            cell.setAttribute('aria-label', `${monthName} ${d}, ${year}${eventSuffix}`);
-            if (events.length) cell.innerHTML += '<span class="calendar__day-dot"></span>';
+            const parts = [];
+            if (taskCount) parts.push(`${taskCount} task${taskCount>1?'s':''}`);
+            if (eventCount) parts.push(`${eventCount} event${eventCount>1?'s':''}`);
+            const suffix = parts.length ? `, ${parts.join(' · ')}` : '';
+            cell.setAttribute('aria-label', `${monthName} ${d}, ${year}${suffix}`);
+            if (parts.length) cell.title = parts.join(', ');
+            if (items.length) cell.innerHTML += '<span class="calendar__day-dot"></span>';
 
-            cell.addEventListener('click', () => { this.selectCalendarDate(dateObj); this.openDayModal(dateObj); });
+            // Roving tabindex for keyboard nav
+            cell.setAttribute('tabindex', (isSelected || !firstFocusableSet) ? '0' : '-1');
+            if (!firstFocusableSet) firstFocusableSet = true;
+
             container.appendChild(cell);
         }
     }
@@ -2208,17 +2227,126 @@ class SmartMentorChatbot {
         if (!this.elements.dayDetailModal || !this.elements.dayDetailDate) return;
         const d = dateObj || new Date();
         this.elements.dayDetailDate.textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const loadingEl = document.getElementById('day-detail-loading');
+        const emptyEl = document.getElementById('day-detail-empty');
+        const contentEl = document.getElementById('day-detail-content');
+        if (loadingEl) loadingEl.hidden = false;
+        if (emptyEl) emptyEl.hidden = true;
+        if (contentEl) { contentEl.hidden = true; contentEl.classList.remove('fade-in'); }
         this.openModal('day-detail-modal');
+        // Fetch and render summary
+        this.loadDaySummary(d);
+    }
+
+    async fetchEventsIfNeeded() {
+        if (this._eventsLoaded || this._eventsLoading) return;
+        this._eventsLoading = true;
+        try {
+            if (window.api && window.api.getEvents) {
+                const data = await window.api.getEvents();
+                this.events = Array.isArray(data) ? data : (data?.data || []);
+            } else {
+                this.events = [];
+            }
+        } catch (_) {
+            this.events = [];
+        } finally {
+            this._eventsLoading = false;
+            this._eventsLoaded = true;
+            this.buildEventsFromData();
+            this.generateCalendarDays();
+            this.updateCalendarEventsList();
+        }
+    }
+
+    async loadDaySummary(dateObj) {
+        const DU = window.DateUtils || null;
+        const date = dateObj || (this.calendarState.selectedDate || new Date());
+        const loadingEl = document.getElementById('day-detail-loading');
+        const emptyEl = document.getElementById('day-detail-empty');
+        const contentEl = document.getElementById('day-detail-content');
+        const tasksEl = document.getElementById('day-detail-tasks');
+        const eventsEl = document.getElementById('day-detail-events');
+        if (tasksEl) tasksEl.innerHTML = '';
+        if (eventsEl) eventsEl.innerHTML = '';
+        try {
+            await this.fetchEventsIfNeeded();
+            const tasksForDay = DU && DU.filterTasksForDay ? DU.filterTasksForDay(this.tasks, date) : (this.tasks || []).filter(t => new Date(t.dueDate).toDateString() === new Date(date).toDateString());
+            const eventsForDay = DU && DU.filterEventsForDay ? DU.filterEventsForDay(this.events, date) : (this.events || []).filter(ev => new Date(ev.date || ev.start).toDateString() === new Date(date).toDateString());
+            const associations = DU && DU.mapEventsToTasks ? DU.mapEventsToTasks(tasksForDay, eventsForDay) : new Map();
+
+            // Render tasks
+            if (tasksEl) {
+                if (tasksForDay.length) {
+                    tasksForDay.forEach(t => {
+                        const li = document.createElement('div');
+                        li.className = 'day-summary-item';
+                        li.setAttribute('role', 'listitem');
+                        const tip = `${this.escapeHtml(t.title)}${t.subject ? ' · ' + this.escapeHtml(t.subject) : ''}`;
+                        li.title = tip;
+                        li.innerHTML = `<div class="day-summary-item__marker" style="background: var(--secondary-color, #10B981);"></div>
+                            <div class="day-summary-item__content">
+                              <div class="day-summary-item__title">${this.escapeHtml(t.title)}</div>
+                              <div class="day-summary-item__meta">${t.subject ? this.escapeHtml(t.subject) : ''}${t.dueDate ? (t.subject ? ' • ' : '') + this.formatDate(t.dueDate) : ''}</div>
+                            </div>`;
+                        tasksEl.appendChild(li);
+                    });
+                }
+            }
+
+            // Render events
+            if (eventsEl) {
+                if (eventsForDay.length) {
+                    eventsForDay.forEach(ev => {
+                        const li = document.createElement('div');
+                        li.className = 'day-summary-item';
+                        li.setAttribute('role', 'listitem');
+                        const relatedTaskId = associations.get(ev.id || ev.title);
+                        const relatedTask = relatedTaskId ? tasksForDay.find(t => t.id === relatedTaskId) : null;
+                        const suffix = relatedTask ? ` · Related: ${this.escapeHtml(relatedTask.title)}` : '';
+                        const tip = `${this.escapeHtml(ev.title)}${ev.subject ? ' · ' + this.escapeHtml(ev.subject) : ''}${suffix}`;
+                        li.title = tip;
+                        li.innerHTML = `<div class="day-summary-item__marker" style="background: var(--primary-color);"></div>
+                            <div class="day-summary-item__content">
+                              <div class="day-summary-item__title">${this.escapeHtml(ev.title)}</div>
+                              <div class="day-summary-item__meta">${ev.subject ? this.escapeHtml(ev.subject) : ''}${suffix}</div>
+                            </div>`;
+                        eventsEl.appendChild(li);
+                    });
+                }
+            }
+
+            const hasAny = (tasksForDay && tasksForDay.length) || (eventsForDay && eventsForDay.length);
+            if (loadingEl) loadingEl.hidden = true;
+            if (contentEl) { contentEl.hidden = !hasAny; if (hasAny) contentEl.classList.add('fade-in'); }
+            if (emptyEl) emptyEl.hidden = !!hasAny;
+        } catch (e) {
+            if (loadingEl) loadingEl.hidden = true;
+            if (contentEl) contentEl.hidden = true;
+            if (emptyEl) { emptyEl.hidden = false; emptyEl.textContent = 'Failed to load day summary.'; }
+        }
     }
 
     buildEventsFromData() {
+        const DU = window.DateUtils || null;
         const byDate = {};
+        const add = (key, item) => {
+            byDate[key] = byDate[key] || [];
+            byDate[key].push(item);
+        };
         this.tasks.forEach(t => {
-            if (t.dueDate) {
-                const key = new Date(t.dueDate).toISOString().slice(0, 10);
-                byDate[key] = byDate[key] || [];
-                byDate[key].push({ type: 'task', title: t.title, date: new Date(t.dueDate) });
+            if (t && t.dueDate) {
+                const key = DU && DU.toLocalDateKey ? DU.toLocalDateKey(t.dueDate) : new Date(t.dueDate).toISOString().slice(0, 10);
+                const d = DU && DU.parse ? DU.parse(t.dueDate) : new Date(t.dueDate);
+                add(key, { type: 'task', title: t.title, date: d, task: t });
             }
+        });
+        (this.events || []).forEach(ev => {
+            const when = ev.date || ev.start;
+            if (!when) return;
+            const key = DU && DU.toLocalDateKey ? DU.toLocalDateKey(when) : new Date(when).toISOString().slice(0, 10);
+            const d = DU && DU.parse ? DU.parse(when) : new Date(when);
+            add(key, { type: 'event', title: ev.title, date: d, event: ev });
         });
         this.calendarState.eventsByDate = byDate;
     }
@@ -2227,19 +2355,23 @@ class SmartMentorChatbot {
         const list = this.elements.calendarEventsList;
         if (!list) return;
         list.innerHTML = '';
+        const DU = window.DateUtils || null;
         const sel = this.calendarState.selectedDate || new Date();
-        const key = sel.toISOString().slice(0, 10);
-        const evts = this.calendarState.eventsByDate?.[key] || [];
-        if (!evts.length) {
-            list.innerHTML = `<div class="calendar-event"><div class="calendar-event__content"><span class="calendar-event__title">No events for this day</span></div></div>`;
+        const key = DU && DU.toLocalDateKey ? DU.toLocalDateKey(sel) : sel.toISOString().slice(0, 10);
+        const items = this.calendarState.eventsByDate?.[key] || [];
+        if (!items.length) {
+            list.innerHTML = `<div class="calendar-event"><div class="calendar-event__content"><span class="calendar-event__title">No tasks or events for this day</span></div></div>`;
             return;
         }
-        evts.forEach((e) => {
+        items.forEach((it) => {
+            const type = it.type === 'task' ? 'Task' : 'Event';
+            const title = this.escapeHtml(it.title || (it.task && it.task.title) || (it.event && it.event.title) || 'Untitled');
+            const tooltip = `${type}: ${title}`;
             list.insertAdjacentHTML('beforeend', `
-                <div class="calendar-event" role="listitem">
-                    <div class="calendar-event__marker" style="background-color:var(--primary-color);"></div>
+                <div class="calendar-event" role="listitem" title="${tooltip}">
+                    <div class="calendar-event__marker" style="background-color:${it.type === 'task' ? 'var(--secondary-color, #10B981)' : 'var(--primary-color)'};"></div>
                     <div class="calendar-event__content">
-                        <span class="calendar-event__title">${e.title}</span>
+                        <span class="calendar-event__title">${title}</span>
                         <span class="calendar-event__date">${this.formatDate(sel)}</span>
                     </div>
                 </div>
@@ -2249,7 +2381,17 @@ class SmartMentorChatbot {
 }
 
 const style = document.createElement('style');
-style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }`;
+style.textContent = `
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 180ms ease-out; }
+.loading::before { content: ''; display:inline-block; width:12px; height:12px; border:2px solid var(--muted-border, #9ca3af); border-top-color: transparent; border-radius:50%; margin-right:8px; vertical-align: -2px; animation: spin 0.8s linear infinite; }
+.day-summary-item { display:flex; align-items:flex-start; gap:10px; padding:6px 0; }
+.day-summary-item__marker { width:8px; height:8px; border-radius:50%; margin-top:8px; }
+.day-summary-item__content { display:flex; flex-direction:column; }
+.day-summary-item__title { font-weight:600; }
+.day-summary-item__meta { color: var(--muted-foreground, #6b7280); font-size: 12px; }
+`;
 document.head.appendChild(style);
 
 document.addEventListener('DOMContentLoaded', () => {

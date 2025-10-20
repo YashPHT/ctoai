@@ -73,6 +73,23 @@
       }
     },
 
+    async getEvents() {
+      this.setError(null); this.setLoading(true);
+      try {
+        const data = await fetchWithRetry('/api/events', { method: 'GET', headers: { 'Accept': 'application/json' } }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data?.events)) return data.events;
+        return [];
+      } finally {
+        this.setLoading(false);
+      }
+    },
+
     async createTask(task) {
       this.setError(null); this.setLoading(true);
       try {
