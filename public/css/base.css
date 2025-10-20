@@ -96,6 +96,13 @@
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Timetable tokens */
+    --timetable-card-max-height: 68vh; /* expands until this height, then scrolls internally */
+    --timetable-grid-min-height: 420px; /* ensures larger per-day boxes */
+    --timetable-col-gap: var(--space-5); /* breathing room between days */
+    --timetable-day-padding: var(--space-4);
+    --timetable-day-header-padding: var(--space-4) var(--space-5);
 }
 
 /********************************************
