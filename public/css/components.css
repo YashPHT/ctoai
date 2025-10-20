@@ -92,7 +92,7 @@
 .calendar__weekday { text-align: center; color: var(--text-tertiary); font-weight: 500; font-size: var(--font-size-sm); }
 .calendar__day { aspect-ratio: 1; padding: var(--space-1); border-radius: var(--radius-md); border: 1px solid transparent; text-align: center; position: relative; }
 .calendar__day:not(.calendar__day--empty):hover { background-color: var(--surface-subtle); }
-.calendar__day--selected { background-color: rgba(37, 99, 235, 0.1); color: var(--primary-color); font-weight: 600; }
+.calendar__day--selected { background-color: var(--primary-soft-bg); color: var(--primary-color); font-weight: 600; }
 .calendar__day-dot { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--primary-color); left: 50%; transform: translateX(-50%); bottom: 6px; }
 
 /* Task List */
@@ -145,14 +145,14 @@
 }
 
 /* --- MODAL AND OVERLAY STYLES --- */
-.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: var(--z-modal-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-.chatbot-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); z-index: var(--z-chat-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.modal-overlay { position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: var(--z-modal-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); }
+.chatbot-overlay { position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: var(--z-chat-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); }
 .modal-overlay.active, .chatbot-overlay.active { opacity: 1; pointer-events: auto; }
 
 .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.96); max-width: 560px; width: calc(100% - 2rem); max-height: 90vh; z-index: var(--z-modal); opacity: 0; transition: transform var(--transition-normal), opacity var(--transition-normal); pointer-events: none; will-change: transform, opacity; }
 .modal.active { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
-.modal-content { background-color: rgba(255, 255, 255, 0.7); -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px); border-radius: var(--radius-lg); border: 1px solid rgba(255, 255, 255, 0.35); box-shadow: 0 20px 40px -8px rgb(2 6 23 / 0.35), 0 4px 6px -4px rgb(2 6 23 / 0.2); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
-[data-theme="dark"] .modal-content { background-color: rgba(30, 41, 59, 0.65); border-color: rgba(148, 163, 184, 0.18); box-shadow: 0 20px 40px -8px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.4); }
+.modal-content { background-color: var(--glass-bg); -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur)); backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur)); border-radius: var(--radius-lg); border: 1px solid var(--glass-border); box-shadow: 0 20px 40px -8px rgb(2 6 23 / 0.35), 0 4px 6px -4px rgb(2 6 23 / 0.2); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+[data-theme="dark"] .modal-content { background-color: var(--glass-bg); border-color: var(--glass-border); box-shadow: 0 20px 40px -8px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.4); }
 .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
 .modal-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
 .modal-subtitle { font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem; }
@@ -160,7 +160,7 @@
 .modal-form .form-group { margin-bottom: 1.25rem; }
 .form-group label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.625rem 0.75rem; background-color: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.9375rem; transition: all var(--transition-fast); }
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary-color); box-shadow: var(--focus-ring-shadow); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .modal-actions { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0; background-color: var(--surface-subtle); }
 .modal-actions-stack { flex-direction: column; }

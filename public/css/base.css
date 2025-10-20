@@ -35,9 +35,9 @@
     --radius-2xl: 1.5rem;
 
     /* Colors (light default) */
-    --primary-color: #2563eb;   /* Primary accent (blue) */
-    --primary-hover: #1d4ed8;
-    --secondary-color: #0ea5e9; /* Secondary accent (sky) */
+    --primary-color: #3b82f6;   /* Primary accent (vibrant blue) */
+    --primary-hover: #2563eb;
+    --secondary-color: #38bdf8; /* Secondary accent (sky) */
     --success-color: #16a34a;   /* Success */
     --warning-color: #f59e0b;   /* Warning */
     --danger-color: #ef4444;    /* Danger */
@@ -55,6 +55,22 @@
     --border-color: #e2e8f0;    /* Border */
     --border-color-strong: #cbd5e1;
     --border-color-hover: #94a3b8;
+
+    /* Accent helpers */
+    --primary-soft-bg: rgba(59, 130, 246, 0.12);
+    --selection-bg: rgba(59, 130, 246, 0.20);
+
+    /* Focus ring */
+    --focus-ring-color: var(--primary-color);
+    --focus-ring-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+
+    /* Overlays & glass */
+    --overlay-backdrop: rgba(0, 0, 0, 0.45);
+    --overlay-blur: 8px;
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(17, 24, 39, 0.10);
+    --glass-blur: 16px;
+    --glass-saturate: 180%;
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -86,23 +102,39 @@
  Dark theme
 ********************************************/
 [data-theme="dark"] {
-    --background: #0f172a;
-    --surface: #1e293b;
-    --surface-elevated: #1e293b;
-    --surface-subtle: #334155;
+    --background: #0a0a0a;
+    --surface: #0f0f0f;
+    --surface-elevated: #171717;
+    --surface-subtle: #141414;
 
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-tertiary: #64748b;
+    --text-primary: #f5f5f5;
+    --text-secondary: #a3a3a3;
+    --text-tertiary: #737373;
 
-    --border-color: #334155;
-    --border-color-strong: #475569;
-    --border-color-hover: #64748b;
+    --border-color: #262626;
+    --border-color-strong: #333333;
+    --border-color-hover: #3f3f46;
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.15);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -4px rgb(0 0 0 / 0.2);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2);
+    /* Accent helpers */
+    --primary-soft-bg: rgba(59, 130, 246, 0.20);
+    --selection-bg: rgba(59, 130, 246, 0.25);
+
+    /* Focus ring */
+    --focus-ring-color: #60a5fa;
+    --focus-ring-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+
+    /* Overlays & glass */
+    --overlay-backdrop: rgba(0, 0, 0, 0.6);
+    --overlay-blur: 8px;
+    --glass-bg: rgba(16, 16, 16, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: 16px;
+    --glass-saturate: 160%;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.45), 0 4px 6px -4px rgb(0 0 0 / 0.45);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
 }
 
 /* Reset and base element styles */
@@ -132,18 +164,18 @@ button { font: inherit; border: none; background: none; cursor: pointer; color: 
 button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 :focus-visible {
-    outline: 2px solid var(--primary-color);
+    outline: 2px solid var(--focus-ring-color);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
 }
 
-::selection { background: rgba(37, 99, 235, 0.2); }
+::selection { background: var(--selection-bg); }
 img, svg { display: block; max-width: 100%; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 
 /* Skip link for keyboard users */
 .skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
-.skip-link:focus { left: 1rem; top: 1rem; width: auto; height: auto; padding: var(--space-2) var(--space-3); background: var(--surface); color: var(--text-primary); border: 2px solid var(--primary-color); border-radius: var(--radius-md); z-index: 9999; }
+.skip-link:focus { left: 1rem; top: 1rem; width: auto; height: auto; padding: var(--space-2) var(--space-3); background: var(--surface); color: var(--text-primary); border: 2px solid var(--focus-ring-color); border-radius: var(--radius-md); z-index: 9999; }
 
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
