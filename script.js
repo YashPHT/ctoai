@@ -39,6 +39,7 @@ class SmartMentorChatbot {
         this.rowDensity = (localStorage.getItem('timetableDensity') || 'expanded');
         if (!['compact','expanded'].includes(this.rowDensity)) this.rowDensity = 'expanded';
         this.timetableLoading = false;
+        this.prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         
         this.boundHandleViewportChange = this.handleViewportChange.bind(this);
         this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
@@ -63,6 +64,7 @@ class SmartMentorChatbot {
         }
         this.fetchTimetable();
         this.setupCalendar();
+        this.setupProgressToggleIndicator();
     }
     
     cacheElements() {
@@ -1753,6 +1755,76 @@ class SmartMentorChatbot {
         this.drawLineChart(this.currentProgressView || 'weekly');
     }
 
+    animateEntrance(el, options = {}) {
+        if (!el) return;
+        const reduce = this.prefersReducedMotion;
+        if (reduce) { el.style.opacity = ''; el.style.transform = ''; return; }
+        const duration = options.duration || 320;
+        const fromY = options.fromY == null ? 6 : options.fromY;
+        const fromScale = options.fromScale == null ? 0.98 : options.fromScale;
+        const start = performance.now();
+        el.style.willChange = 'transform, opacity';
+        const animate = (t) => {
+            const prog = Math.min(1, (t - start) / duration);
+            const ease = 1 - Math.pow(1 - prog, 3);
+            const y = (1 - ease) * fromY;
+            const s = fromScale + (1 - fromScale) * ease;
+            el.style.opacity = String(ease);
+            el.style.transform = `translateY(${y}px) scale(${s})`;
+            if (prog < 1) requestAnimationFrame(animate); else {
+                el.style.opacity = '';
+                el.style.transform = '';
+                el.style.willChange = '';
+            }
+        };
+        requestAnimationFrame(animate);
+    }
+
+    setupProgressToggleIndicator() {
+        try {
+            const container = document.querySelector('.progress-view-toggle');
+            if (!container) return;
+            if (!container.querySelector('.progress-view-toggle__indicator')) {
+                const indicator = document.createElement('div');
+                indicator.className = 'progress-view-toggle__indicator';
+                container.appendChild(indicator);
+            }
+            this.updateProgressToggleIndicator();
+            window.addEventListener('resize', () => this.updateProgressToggleIndicator());
+        } catch (_) {}
+    }
+
+    updateProgressToggleIndicator() {
+        try {
+            const container = document.querySelector('.progress-view-toggle');
+            const indicator = container && container.querySelector('.progress-view-toggle__indicator');
+            const active = container && container.querySelector('.progress-view-toggle__button--active');
+            if (!container || !indicator || !active) return;
+            const crect = container.getBoundingClientRect();
+            const arect = active.getBoundingClientRect();
+            const x = arect.left - crect.left + container.scrollLeft;
+            indicator.style.width = `${arect.width}px`;
+            indicator.style.transform = `translateX(${Math.round(x)}px)`;
+        } catch (_) {}
+    }
+
+    createRipple(e, el) {
+        try {
+            if (!el || this.prefersReducedMotion) return;
+            const rect = el.getBoundingClientRect();
+            const d = Math.max(rect.width, rect.height) * 2;
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            ripple.style.width = ripple.style.height = `${d}px`;
+            const left = (e.clientX - rect.left) - d / 2;
+            const top = (e.clientY - rect.top) - d / 2;
+            ripple.style.left = `${left}px`;
+            ripple.style.top = `${top}px`;
+            el.appendChild(ripple);
+            ripple.addEventListener('animationend', () => ripple.remove());
+        } catch (_) {}
+    }
+
     handleProgressViewToggle(button) {
         if (!button) return;
         const view = button.getAttribute('data-view') || 'weekly';
@@ -1764,13 +1836,14 @@ class SmartMentorChatbot {
         button.setAttribute('aria-pressed', 'true');
         this.currentProgressView = view;
         this.drawLineChart(view);
+        this.updateProgressToggleIndicator();
     }
 
     drawLineChart(view) {
         const canvas = this.elements.progressGraphCanvas;
         if (!canvas || !this.analytics || !window.Chart) return;
-        // entrance motion
-        try { canvas.classList.add('chart-enter'); setTimeout(() => { canvas.classList.remove('chart-enter'); }, 400); } catch(_) {}
+        // entrance motion via rAF
+        this.animateEntrance(canvas, { duration: 320, fromY: 6, fromScale: 0.98 });
         
         const dataMap = {
             weekly: { data: this.analytics.trend.weekly, labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
@@ -2353,7 +2426,7 @@ class SmartMentorChatbot {
             cell.setAttribute('aria-label', `${monthName} ${d}, ${year}${eventSuffix}`);
             if (events.length) cell.innerHTML += '<span class="calendar__day-dot"></span>';
 
-            cell.addEventListener('click', () => { this.selectCalendarDate(dateObj); this.openDayModal(dateObj); });
+            cell.addEventListener('click', (e) => { this.createRipple(e, cell); this.selectCalendarDate(dateObj); this.openDayModal(dateObj); });
             container.appendChild(cell);
         }
     }
@@ -2407,5 +2480,6 @@ style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { tr
 document.head.appendChild(style);
 
 document.addEventListener('DOMContentLoaded', () => {
+    try { document.documentElement.classList.add('js-animate'); requestAnimationFrame(() => { document.documentElement.classList.add('page-ready'); }); } catch (_) {}
     window.smartMentor = new SmartMentorChatbot();
 });

@@ -92,10 +92,26 @@
     --z-modal: 1310;         /* Topmost modal layer */
     --z-sidebar: 1100;       /* Mobile sidebar */
 
-    /* Transitions */
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    /* Motion tokens (durations and easings) */
+    --motion-duration-100: 120ms;
+    --motion-duration-150: 180ms;
+    --motion-duration-200: 220ms;
+    --motion-duration-250: 260ms;
+    --motion-duration-300: 320ms;
+    --motion-duration-350: 380ms;
+    --motion-duration-400: 440ms;
+    --motion-duration-450: 520ms;
+
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+    --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --ease-spring-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    /* Legacy transition aliases */
+    --transition-fast: var(--motion-duration-150) var(--ease-standard);
+    --transition-normal: var(--motion-duration-250) var(--ease-standard);
+    --transition-slow: var(--motion-duration-350) var(--ease-standard);
 
     /* Timetable tokens */
     --timetable-card-max-height: 68vh; /* expands until this height, then scrolls internally */
@@ -183,6 +199,10 @@ img, svg { display: block; max-width: 100%; }
 /* Skip link for keyboard users */
 .skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
 .skip-link:focus { left: 1rem; top: 1rem; width: auto; height: auto; padding: var(--space-2) var(--space-3); background: var(--surface); color: var(--text-primary); border: 2px solid var(--focus-ring-color); border-radius: var(--radius-md); z-index: 9999; }
+
+/* Page entrance transitions */
+.js-animate .app-container { opacity: 0; transform: translateY(6px); }
+.js-animate.page-ready .app-container { opacity: 1; transform: translateY(0); transition: opacity var(--motion-duration-300) var(--ease-decelerate), transform var(--motion-duration-400) var(--ease-decelerate); will-change: opacity, transform; }
 
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
