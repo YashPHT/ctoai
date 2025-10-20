@@ -1115,6 +1115,53 @@ class SmartMentorChatbot {
         }
     }
 
+    setupModalFocusTrap(modal) {
+        this.teardownModalFocusTrap();
+        if (!modal) return;
+        const selectors = [
+            'a[href]','area[href]','input:not([disabled])','select:not([disabled])','textarea:not([disabled])',
+            'button:not([disabled])','iframe','[tabindex]:not([tabindex="-1"])','[contentEditable=true]'
+        ];
+        const getFocusable = () => Array.from(modal.querySelectorAll(selectors.join(','))).filter(el => el.offsetParent !== null || el === document.activeElement);
+        this._modalTrapHandler = (e) => {
+            if (e.key !== 'Tab') return;
+            const focusables = getFocusable();
+            if (!focusables.length) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last || !modal.contains(document.activeElement)) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+        this._modalFocusinHandler = (e) => {
+            if (!modal.contains(e.target)) {
+                const focusables = getFocusable();
+                if (focusables.length) focusables[0].focus();
+            }
+        };
+        document.addEventListener('keydown', this._modalTrapHandler);
+        document.addEventListener('focusin', this._modalFocusinHandler);
+    }
+
+    teardownModalFocusTrap() {
+        if (this._modalTrapHandler) {
+            document.removeEventListener('keydown', this._modalTrapHandler);
+            this._modalTrapHandler = null;
+        }
+        if (this._modalFocusinHandler) {
+            document.removeEventListener('focusin', this._modalFocusinHandler);
+            this._modalFocusinHandler = null;
+        }
+    }
+
     enableSwipeToComplete(container) {
         if (!container) return;
         let startX = 0; let active = null;
@@ -1428,13 +1475,19 @@ class SmartMentorChatbot {
         if (!modal) return;
         
         this.activeModal = modalId;
+        this._restoreFocusEl = document.activeElement;
         
         if (this.elements.taskModalOverlay) {
             this.elements.taskModalOverlay.removeAttribute('hidden');
             requestAnimationFrame(() => this.elements.taskModalOverlay.classList.add('active'));
         }
         modal.removeAttribute('hidden');
-        requestAnimationFrame(() => modal.classList.add('active'));
+        this.setupModalFocusTrap(modal);
+        requestAnimationFrame(() => {
+            modal.classList.add('active');
+            const firstFocusable = modal.querySelector('input, select, textarea, button, [tabindex]:not([tabindex="-1"])');
+            if (firstFocusable) firstFocusable.focus();
+        });
     }
     
     closeModal(modalId = null) {
@@ -1455,6 +1508,11 @@ class SmartMentorChatbot {
             }
             modal.setAttribute('hidden', '');
             this.activeModal = null;
+            this.teardownModalFocusTrap();
+            if (this._restoreFocusEl && typeof this._restoreFocusEl.focus === 'function') {
+                this._restoreFocusEl.focus();
+            }
+            this._restoreFocusEl = null;
         }, 250);
     }
     
@@ -1698,6 +1756,7 @@ class SmartMentorChatbot {
         const labelEl = this.elements.calendarMonthLabel;
         if (labelEl) labelEl.textContent = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         container.innerHTML = '';
+        const monthName = current.toLocaleDateString('en-US', { month: 'long' });
         
         for (let i = 0; i < startDay; i++) {
             container.insertAdjacentHTML('beforeend', '<div class="calendar__day calendar__day--empty"></div>');
@@ -1710,7 +1769,11 @@ class SmartMentorChatbot {
             const cell = document.createElement('button');
             cell.className = 'calendar__day';
             cell.textContent = d;
-            if (dateObj.toDateString() === selected.toDateString()) cell.classList.add('calendar__day--selected');
+            const isSelected = dateObj.toDateString() === selected.toDateString();
+            if (isSelected) cell.classList.add('calendar__day--selected');
+            cell.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+            const eventSuffix = events.length ? `, ${events.length} event${events.length > 1 ? 's' : ''}` : '';
+            cell.setAttribute('aria-label', `${monthName} ${d}, ${year}${eventSuffix}`);
             if (events.length) cell.innerHTML += '<span class="calendar__day-dot"></span>';
 
             cell.addEventListener('click', () => { this.selectCalendarDate(dateObj); this.openDayModal(dateObj); });

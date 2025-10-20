@@ -139,6 +139,10 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 img, svg { display: block; max-width: 100%; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 
+/* Skip link for keyboard users */
+.skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.skip-link:focus { left: 1rem; top: 1rem; width: auto; height: auto; padding: var(--space-2) var(--space-3); background: var(--surface); color: var(--text-primary); border: 2px solid var(--primary-color); border-radius: var(--radius-md); z-index: 9999; }
+
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
