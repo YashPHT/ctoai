@@ -35,6 +35,10 @@ class SmartMentorChatbot {
         this.charts = {};
         this.calendarState = { currentDate: new Date(), selectedDate: new Date(), eventsByDate: {} };
         this.timetable = null;
+        this.timetableFilters = { day: 'all', subject: '' };
+        this.rowDensity = (localStorage.getItem('timetableDensity') || 'expanded');
+        if (!['compact','expanded'].includes(this.rowDensity)) this.rowDensity = 'expanded';
+        this.timetableLoading = false;
         
         this.boundHandleViewportChange = this.handleViewportChange.bind(this);
         this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
@@ -150,7 +154,13 @@ class SmartMentorChatbot {
             dayDetailDate: document.getElementById('day-detail-date'),
             bulkSelectAll: document.getElementById('bulk-select-all'),
             bulkComplete: document.getElementById('bulk-complete'),
-            toastContainer: document.getElementById('toast-container')
+            toastContainer: document.getElementById('toast-container'),
+            // Timetable v2 controls
+            timetableDayFilter: document.getElementById('timetable-day-filter'),
+            timetableSubjectFilter: document.getElementById('timetable-subject-filter'),
+            timetableClearFilters: document.getElementById('timetable-clear-filters'),
+            timetableDensityButtons: document.querySelectorAll('#timetable-density-toggle .progress-view-toggle__button'),
+            addBlockGlobal: document.getElementById('add-block-global')
         };
     }
     
@@ -364,6 +374,43 @@ class SmartMentorChatbot {
         if (this.elements.timetableGrid) {
             this.elements.timetableGrid.addEventListener('keydown', (e) => this.handleTimetableKeydown(e));
             this.elements.timetableGrid.addEventListener('click', (e) => this.handleTimetableClick(e));
+            this.elements.timetableGrid.setAttribute('data-density', this.rowDensity);
+        }
+
+        if (this.elements.timetableDayFilter) {
+            this.elements.timetableDayFilter.addEventListener('change', () => {
+                this.timetableFilters.day = this.elements.timetableDayFilter.value;
+                this.renderTimetable();
+            });
+        }
+        if (this.elements.timetableSubjectFilter) {
+            this.elements.timetableSubjectFilter.addEventListener('input', () => {
+                this.timetableFilters.subject = (this.elements.timetableSubjectFilter.value || '').toLowerCase();
+                this.renderTimetable();
+            });
+        }
+        if (this.elements.timetableClearFilters) {
+            this.elements.timetableClearFilters.addEventListener('click', () => {
+                this.timetableFilters = { day: 'all', subject: '' };
+                if (this.elements.timetableDayFilter) this.elements.timetableDayFilter.value = 'all';
+                if (this.elements.timetableSubjectFilter) this.elements.timetableSubjectFilter.value = '';
+                this.renderTimetable();
+            });
+        }
+        if (this.elements.timetableDensityButtons && this.elements.timetableDensityButtons.forEach) {
+            this.elements.timetableDensityButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const density = btn.getAttribute('data-density') || 'expanded';
+                    this.setDensity(density);
+                });
+            });
+            this.updateDensityToggleUI();
+        }
+        if (this.elements.addBlockGlobal) {
+            this.elements.addBlockGlobal.addEventListener('click', () => {
+                const day = (this.timetableFilters.day && this.timetableFilters.day !== 'all') ? this.timetableFilters.day : this.getTodayKey();
+                this.openBlockForm(day);
+            });
         }
 
         // KPI drilldown hooks (stub)
@@ -1041,6 +1088,33 @@ class SmartMentorChatbot {
         
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
+    }
+
+    getTodayKey() {
+        const map = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        const d = new Date().getDay();
+        return map[d] || 'monday';
+    }
+
+    setDensity(density) {
+        const val = (density === 'compact') ? 'compact' : 'expanded';
+        this.rowDensity = val;
+        try { localStorage.setItem('timetableDensity', val); } catch(_) {}
+        if (this.elements.timetableGrid) this.elements.timetableGrid.setAttribute('data-density', val);
+        this.updateDensityToggleUI();
+        this.renderTimetable();
+    }
+
+    updateDensityToggleUI() {
+        try {
+            if (!this.elements.timetableDensityButtons || !this.elements.timetableDensityButtons.forEach) return;
+            this.elements.timetableDensityButtons.forEach(btn => {
+                const val = btn.getAttribute('data-density');
+                const isActive = val === this.rowDensity;
+                btn.classList.toggle('progress-view-toggle__button--active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        } catch (_) {}
     }
 
     toggleSidebarVisibility() {
@@ -1736,11 +1810,15 @@ class SmartMentorChatbot {
     }
 
     async fetchTimetable() {
+        this.timetableLoading = true;
+        this.renderTimetable();
         try {
             const data = (window.api && window.api.getTimetable) ? await window.api.getTimetable() : null;
             this.timetable = this.normalizeTimetable(data);
         } catch (_) {
             this.timetable = this.normalizeTimetable(null);
+        } finally {
+            this.timetableLoading = false;
         }
         this.renderTimetable();
         this.buildEventsFromData();
@@ -1752,8 +1830,51 @@ class SmartMentorChatbot {
         const daysOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
         const dayLabels = { monday:'Monday', tuesday:'Tuesday', wednesday:'Wednesday', thursday:'Thursday', friday:'Friday', saturday:'Saturday', sunday:'Sunday' };
         grid.innerHTML = '';
+        if (this.elements.timetableGrid) {
+            this.elements.timetableGrid.setAttribute('data-density', this.rowDensity);
+        }
+        const selectedDay = (this.timetableFilters && this.timetableFilters.day) ? this.timetableFilters.day : 'all';
+        const daysToRender = selectedDay === 'all' ? daysOrder : [selectedDay];
 
-        daysOrder.forEach((day) => {
+        if (this.timetableLoading) {
+            daysToRender.forEach((day) => {
+                const col = document.createElement('section');
+                col.className = 'day-column';
+                col.dataset.day = day;
+                col.setAttribute('role','region');
+                col.setAttribute('aria-labelledby', `day-${day}-label`);
+                col.innerHTML = `
+                    <div class="day-header">
+                        <span id="day-${day}-label">${dayLabels[day]}</span>
+                        <button class="icon-button add-block-button" data-action="add-block" data-day="${day}" aria-label="Add block on ${dayLabels[day]}">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                    </div>
+                    <div class="day-blocks" role="list">
+                        <div class="time-block time-block--skeleton">
+                            <div class="time-block__color"></div>
+                            <div class="time-block__content">
+                                <div class="time-block__title" style="width:60%">&nbsp;</div>
+                                <div class="time-block__meta" style="width:40%">&nbsp;</div>
+                            </div>
+                            <div class="time-block__actions"></div>
+                        </div>
+                        <div class="time-block time-block--skeleton">
+                            <div class="time-block__color"></div>
+                            <div class="time-block__content">
+                                <div class="time-block__title" style="width:50%">&nbsp;</div>
+                                <div class="time-block__meta" style="width:30%">&nbsp;</div>
+                            </div>
+                            <div class="time-block__actions"></div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+            return;
+        }
+
+        daysToRender.forEach((day) => {
             const col = document.createElement('section');
             col.className = 'day-column';
             col.dataset.day = day;
@@ -1769,14 +1890,22 @@ class SmartMentorChatbot {
                 <div class="day-blocks" role="list"></div>
             `;
             const blocksContainer = col.querySelector('.day-blocks');
-            const blocks = (this.timetable?.days?.[day] || []).slice();
+            let blocks = (this.timetable?.days?.[day] || []).slice();
             blocks.forEach((b, idx) => blocks[idx] = this.ensureBlock(b));
+            const subjectQuery = (this.timetableFilters?.subject || '').toLowerCase();
+            if (subjectQuery) {
+                blocks = blocks.filter(b => (b.subject || '').toLowerCase().includes(subjectQuery));
+            }
 
             blocks.sort((a,b) => this.timeToMinutes(a.start) - this.timeToMinutes(b.start));
-            blocks.forEach((block, index) => {
-                const el = this.createTimeBlockEl(block, day, index);
-                blocksContainer.appendChild(el);
-            });
+            if (!blocks.length) {
+                blocksContainer.innerHTML = `<div class="empty-state empty-state--small"><p>No blocks</p></div>`;
+            } else {
+                blocks.forEach((block, index) => {
+                    const el = this.createTimeBlockEl(block, day, index);
+                    blocksContainer.appendChild(el);
+                });
+            }
 
             blocksContainer.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -1891,6 +2020,7 @@ class SmartMentorChatbot {
                 <button class="icon-button" title="Move later" aria-label="Move later" data-action="move-down" data-day="${day}" data-block-id="${block.id}">▼</button>
                 <button class="icon-button" title="Move to previous day" aria-label="Move to previous day" data-action="move-left" data-day="${day}" data-block-id="${block.id}">◀</button>
                 <button class="icon-button" title="Move to next day" aria-label="Move to next day" data-action="move-right" data-day="${day}" data-block-id="${block.id}">▶</button>
+                <button class="icon-button" title="Duplicate" aria-label="Duplicate block" data-action="duplicate-block" data-day="${day}" data-block-id="${block.id}">⧉</button>
                 <button class="icon-button" title="Edit" aria-label="Edit block" data-action="edit-block" data-day="${day}" data-block-id="${block.id}">✎</button>
                 <button class="icon-button" title="Delete" aria-label="Delete block" data-action="delete-block" data-day="${day}" data-block-id="${block.id}">🗑</button>
             </div>
@@ -1923,6 +2053,8 @@ class SmartMentorChatbot {
         } else if (action === 'delete-block' && day && blockId) {
             this.pendingDelete = { day, blockId };
             this.openModal('timetable-delete-modal');
+        } else if (action === 'duplicate-block' && day && blockId) {
+            this.duplicateBlock(day, blockId);
         } else if (action && action.startsWith('move') && day && blockId) {
             if (action === 'move-up') this.moveBlockRelative(day, blockId, -1);
             if (action === 'move-down') this.moveBlockRelative(day, blockId, +1);
@@ -1932,15 +2064,25 @@ class SmartMentorChatbot {
     }
 
     handleTimetableKeydown(e) {
-        if (!e.altKey) return;
         const blockEl = e.target.closest('.time-block');
         if (!blockEl) return;
         const day = blockEl.dataset.day; const blockId = blockEl.dataset.blockId;
         if (!day || !blockId) return;
-        if (e.key === 'ArrowUp') { e.preventDefault(); this.moveBlockRelative(day, blockId, -1); }
-        if (e.key === 'ArrowDown') { e.preventDefault(); this.moveBlockRelative(day, blockId, +1); }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, -1); }
-        if (e.key === 'ArrowRight') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, +1); }
+
+        // Movement shortcuts (Alt + Arrow keys)
+        if (e.altKey) {
+            if (e.key === 'ArrowUp') { e.preventDefault(); this.moveBlockRelative(day, blockId, -1); return; }
+            if (e.key === 'ArrowDown') { e.preventDefault(); this.moveBlockRelative(day, blockId, +1); return; }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, -1); return; }
+            if (e.key === 'ArrowRight') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, +1); return; }
+        }
+
+        // Enter to edit
+        if (e.key === 'Enter') { e.preventDefault(); this.openBlockForm(day, blockId); return; }
+        // Delete to delete
+        if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.pendingDelete = { day, blockId }; this.openModal('timetable-delete-modal'); return; }
+        // Ctrl/Cmd + D to duplicate
+        if ((e.ctrlKey || e.metaKey) && (String(e.key).toLowerCase() === 'd')) { e.preventDefault(); this.duplicateBlock(day, blockId); return; }
     }
 
     startInlineEditTitle(titleEl, day, blockId) {
@@ -2018,6 +2160,18 @@ class SmartMentorChatbot {
         this.saveTimetableOptimistic(apply, 'Deleted');
         this.closeModal('timetable-delete-modal');
         this.pendingDelete = null;
+    }
+
+    duplicateBlock(day, blockId) {
+        const apply = (tt) => {
+            const arr = tt.days[day] || (tt.days[day] = []);
+            const i = arr.findIndex(b => b.id === blockId);
+            if (i === -1) return;
+            const src = arr[i];
+            const clone = { ...src, id: this.generateTaskId(), subject: (src.subject || 'Untitled') + ' (Copy)' };
+            arr.splice(i + 1, 0, clone);
+        };
+        this.saveTimetableOptimistic(apply, 'Duplicated');
     }
 
     moveBlockRelative(day, blockId, delta) {
