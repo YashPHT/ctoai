@@ -1882,6 +1882,26 @@ class SmartMentorChatbot {
         }
     }
 
+    setDensity(density) {
+        const val = (density === 'compact') ? 'compact' : 'expanded';
+        this.rowDensity = val;
+        try { localStorage.setItem('timetableDensity', val); } catch (_) {}
+        this.updateDensityToggleUI();
+        this.renderTimetable();
+    }
+
+    updateDensityToggleUI() {
+        const btns = this.elements.timetableDensityButtons || [];
+        if (btns && btns.forEach) {
+            btns.forEach(btn => {
+                const d = btn.getAttribute('data-density') || 'expanded';
+                const active = d === this.rowDensity;
+                btn.classList.toggle('progress-view-toggle__button--active', active);
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+        }
+    }
+
     async fetchTimetable() {
         this.timetableLoading = true;
         this.renderTimetable();
@@ -1900,6 +1920,7 @@ class SmartMentorChatbot {
     renderTimetable() {
         const grid = this.elements.timetableGrid;
         if (!grid) return;
+        grid.classList.add('timetable-grid--rows');
         const daysOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
         const dayLabels = { monday:'Monday', tuesday:'Tuesday', wednesday:'Wednesday', thursday:'Thursday', friday:'Friday', saturday:'Saturday', sunday:'Sunday' };
         grid.innerHTML = '';
@@ -1909,60 +1930,49 @@ class SmartMentorChatbot {
         const selectedDay = (this.timetableFilters && this.timetableFilters.day) ? this.timetableFilters.day : 'all';
         const daysToRender = selectedDay === 'all' ? daysOrder : [selectedDay];
 
+        const metrics = this.computeTimelineMetrics();
+
         if (this.timetableLoading) {
             daysToRender.forEach((day) => {
-                const col = document.createElement('section');
-                col.className = 'day-column';
-                col.dataset.day = day;
-                col.setAttribute('role','region');
-                col.setAttribute('aria-labelledby', `day-${day}-label`);
-                col.innerHTML = `
-                    <div class="day-header">
+                const row = document.createElement('section');
+                row.className = 'day-row';
+                row.dataset.day = day;
+                row.setAttribute('role','region');
+                row.setAttribute('aria-labelledby', `day-${day}-label`);
+                row.innerHTML = `
+                    <div class="day-row__header">
                         <span id="day-${day}-label">${dayLabels[day]}</span>
                         <button class="icon-button add-block-button" data-action="add-block" data-day="${day}" aria-label="Add block on ${dayLabels[day]}">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         </button>
                     </div>
-                    <div class="day-blocks" role="list">
-                        <div class="time-block time-block--skeleton">
-                            <div class="time-block__color"></div>
-                            <div class="time-block__content">
-                                <div class="time-block__title" style="width:60%">&nbsp;</div>
-                                <div class="time-block__meta" style="width:40%">&nbsp;</div>
-                            </div>
-                            <div class="time-block__actions"></div>
-                        </div>
-                        <div class="time-block time-block--skeleton">
-                            <div class="time-block__color"></div>
-                            <div class="time-block__content">
-                                <div class="time-block__title" style="width:50%">&nbsp;</div>
-                                <div class="time-block__meta" style="width:30%">&nbsp;</div>
-                            </div>
-                            <div class="time-block__actions"></div>
-                        </div>
+                    <div class="day-row__timeline" data-day="${day}">
+                        <div class="day-row__track" style="width:${Math.round(metrics.trackWidth)}px"></div>
                     </div>
                 `;
-                grid.appendChild(col);
+                grid.appendChild(row);
             });
             return;
         }
 
         daysToRender.forEach((day) => {
-            const col = document.createElement('section');
-            col.className = 'day-column';
-            col.dataset.day = day;
-            col.setAttribute('role','region');
-            col.setAttribute('aria-labelledby', `day-${day}-label`);
-            col.innerHTML = `
-                <div class="day-header">
+            const row = document.createElement('section');
+            row.className = 'day-row';
+            row.dataset.day = day;
+            row.setAttribute('role','region');
+            row.setAttribute('aria-labelledby', `day-${day}-label`);
+            row.innerHTML = `
+                <div class="day-row__header">
                     <span id="day-${day}-label">${dayLabels[day]}</span>
                     <button class="icon-button add-block-button" data-action="add-block" data-day="${day}" aria-label="Add block on ${dayLabels[day]}">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </button>
                 </div>
-                <div class="day-blocks" role="list"></div>
+                <div class="day-row__timeline" data-day="${day}">
+                    <div class="day-row__track" style="width:${Math.round(metrics.trackWidth)}px"></div>
+                </div>
             `;
-            const blocksContainer = col.querySelector('.day-blocks');
+            const track = row.querySelector('.day-row__track');
             let blocks = (this.timetable?.days?.[day] || []).slice();
             blocks.forEach((b, idx) => blocks[idx] = this.ensureBlock(b));
             const subjectQuery = (this.timetableFilters?.subject || '').toLowerCase();
@@ -1972,19 +1982,23 @@ class SmartMentorChatbot {
 
             blocks.sort((a,b) => this.timeToMinutes(a.start) - this.timeToMinutes(b.start));
             if (!blocks.length) {
-                blocksContainer.innerHTML = `<div class="empty-state empty-state--small"><p>No blocks</p></div>`;
+                const empty = document.createElement('div');
+                empty.className = 'empty-state empty-state--small';
+                empty.innerHTML = '<p>No blocks</p>';
+                track.appendChild(empty);
             } else {
-                blocks.forEach((block, index) => {
-                    const el = this.createTimeBlockEl(block, day, index);
-                    blocksContainer.appendChild(el);
+                blocks.forEach((block) => {
+                    const el = this.createTimelineBlockEl(block, day, metrics);
+                    track.appendChild(el);
                 });
             }
 
-            blocksContainer.addEventListener('dragover', (e) => {
+            const timeline = row.querySelector('.day-row__timeline');
+            timeline.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
             });
-            blocksContainer.addEventListener('drop', (e) => {
+            timeline.addEventListener('drop', (e) => {
                 e.preventDefault();
                 if (!this.dragState) return;
                 const from = this.dragState;
@@ -1993,7 +2007,7 @@ class SmartMentorChatbot {
                 this.clearDragState();
             });
 
-            grid.appendChild(col);
+            grid.appendChild(row);
         });
     }
 
@@ -2072,6 +2086,233 @@ class SmartMentorChatbot {
         return `${hh}:${m.toString().padStart(2,'0')} ${ampm}`;
     }
 
+    computeTimelineMetrics() {
+        const grid = this.elements.timetableGrid;
+        const containerWidth = grid ? grid.clientWidth : 1024;
+        const isDesktop = window.innerWidth >= 1024;
+        // On desktop, fit to container; on smaller screens, enforce wider track for horizontal scroll
+        const trackWidth = Math.max(isDesktop ? containerWidth - 32 : 1440, 720);
+        const pxPerMinute = trackWidth / (24 * 60);
+        this.pxPerMinute = pxPerMinute;
+        this.trackWidth = trackWidth;
+        if (!this.snapMinutes || typeof this.snapMinutes !== 'number') this.snapMinutes = 15;
+        this.minBlockMinutes = Math.max(this.snapMinutes, 5);
+        return { trackWidth, pxPerMinute };
+    }
+
+    getTodayKey() {
+        const idx = new Date().getDay();
+        const map = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        return map[idx] || 'monday';
+    }
+
+    roundToSnap(mins) {
+        const snap = this.snapMinutes || 15;
+        return Math.round(mins / snap) * snap;
+    }
+
+    createTimelineBlockEl(block, day, metrics) {
+        const el = document.createElement('div');
+        el.className = 'time-block';
+        el.setAttribute('tabindex', '0');
+        el.dataset.blockId = block.id;
+        el.dataset.day = day;
+
+        const color = block.color || '#2563eb';
+        const startM = this.timeToMinutes(block.start);
+        const endM = this.timeToMinutes(block.end);
+        const left = Math.max(0, Math.round(startM * metrics.pxPerMinute));
+        const width = Math.max(10, Math.round((endM - startM) * metrics.pxPerMinute));
+        el.style.left = `${left}px`;
+        el.style.width = `${width}px`;
+
+        const step = (this.snapMinutes || 15) * 60;
+        el.innerHTML = `
+            <div class="time-block__resize time-block__resize--start" aria-label="Adjust start" role="separator"></div>
+            <div class="time-block__color" style="background:${color}"></div>
+            <div class="time-block__content">
+                <div class="time-block__title" data-inline="subject">${this.escapeHtml(block.subject || 'Untitled')}</div>
+                <div class="time-block__meta">
+                    <label class="sr-only" for="start-${block.id}">Start time</label>
+                    <input id="start-${block.id}" class="time-input time-input--start" type="time" step="${step}" value="${block.start}" aria-label="Start time" />
+                    <span aria-hidden="true">–</span>
+                    <label class="sr-only" for="end-${block.id}">End time</label>
+                    <input id="end-${block.id}" class="time-input time-input--end" type="time" step="${step}" value="${block.end}" aria-label="End time" />
+                    ${block.location ? `<span aria-hidden="true">•</span><span class="time-block__location">${this.escapeHtml(block.location)}</span>` : ''}
+                </div>
+            </div>
+            <div class="time-block__actions">
+                <button class="icon-button" title="Duplicate" aria-label="Duplicate block" data-action="duplicate-block" data-day="${day}" data-block-id="${block.id}">⧉</button>
+                <button class="icon-button" title="Edit" aria-label="Edit block" data-action="edit-block" data-day="${day}" data-block-id="${block.id}">✎</button>
+                <button class="icon-button" title="Delete" aria-label="Delete block" data-action="delete-block" data-day="${day}" data-block-id="${block.id}">🗑</button>
+            </div>
+            <div class="time-block__resize time-block__resize--end" aria-label="Adjust end" role="separator"></div>
+        `;
+
+        // Inline subject editing
+        const titleEl = el.querySelector('.time-block__title');
+        titleEl.addEventListener('dblclick', () => this.startInlineEditTitle(titleEl, day, block.id));
+
+        // Time inputs
+        const startInput = el.querySelector('.time-input--start');
+        const endInput = el.querySelector('.time-input--end');
+        const onChange = () => {
+            const newStart = this.normalizeTimeStr(startInput.value);
+            const newEnd = this.normalizeTimeStr(endInput.value);
+            if (this.timeToMinutes(newEnd) <= this.timeToMinutes(newStart)) {
+                this.showToast('End must be after start', 'error');
+                startInput.value = block.start; endInput.value = block.end;
+                return;
+            }
+            const apply = (tt) => {
+                const arr = tt.days[day] || (tt.days[day] = []);
+                const i = arr.findIndex(b => b.id === block.id);
+                if (i >= 0) { arr[i].start = newStart; arr[i].end = newEnd; }
+            };
+            this.saveTimetableOptimistic(apply, 'Updated');
+        };
+        startInput.addEventListener('change', onChange);
+        endInput.addEventListener('change', onChange);
+
+        // Drag to move and resize
+        const startHandle = el.querySelector('.time-block__resize--start');
+        const endHandle = el.querySelector('.time-block__resize--end');
+        startHandle.addEventListener('mousedown', (e) => this.startBlockResize(e, day, block, el, metrics, 'start'));
+        endHandle.addEventListener('mousedown', (e) => this.startBlockResize(e, day, block, el, metrics, 'end'));
+        el.addEventListener('mousedown', (e) => {
+            const t = e.target;
+            if (t.closest('.time-block__resize') || t.closest('.time-input') || t.closest('.time-block__actions')) return;
+            this.startBlockMoveDrag(e, day, block, el, metrics);
+        });
+
+        return el;
+    }
+
+    startBlockMoveDrag(e, day, block, el, metrics) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const s = this.timeToMinutes(block.start);
+        const eMin = this.timeToMinutes(block.end);
+        const op = {
+            type: 'move', day, blockId: block.id, el,
+            originStart: s, originEnd: eMin,
+            startClientX: e.clientX, startClientY: e.clientY,
+            pxPerMinute: metrics.pxPerMinute, trackWidth: metrics.trackWidth,
+            hoverDay: day
+        };
+        this._activeDrag = op;
+        this._onPointerMoveBound = (ev) => this.onTimelinePointerMove(ev);
+        this._onPointerUpBound = (ev) => this.onTimelinePointerUp(ev);
+        document.addEventListener('mousemove', this._onPointerMoveBound);
+        document.addEventListener('mouseup', this._onPointerUpBound);
+        document.body.style.userSelect = 'none';
+    }
+
+    startBlockResize(e, day, block, el, metrics, edge) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const s = this.timeToMinutes(block.start);
+        const eMin = this.timeToMinutes(block.end);
+        const op = {
+            type: edge === 'start' ? 'resize-start' : 'resize-end', day, blockId: block.id, el,
+            originStart: s, originEnd: eMin,
+            startClientX: e.clientX, startClientY: e.clientY,
+            pxPerMinute: metrics.pxPerMinute, trackWidth: metrics.trackWidth,
+            hoverDay: day
+        };
+        this._activeDrag = op;
+        this._onPointerMoveBound = (ev) => this.onTimelinePointerMove(ev);
+        this._onPointerUpBound = (ev) => this.onTimelinePointerUp(ev);
+        document.addEventListener('mousemove', this._onPointerMoveBound);
+        document.addEventListener('mouseup', this._onPointerUpBound);
+        document.body.style.userSelect = 'none';
+    }
+
+    onTimelinePointerMove(ev) {
+        const op = this._activeDrag;
+        if (!op) return;
+        const clientX = ev.clientX != null ? ev.clientX : (ev.touches && ev.touches[0] ? ev.touches[0].clientX : 0);
+        const dx = clientX - op.startClientX;
+        const deltaMins = this.roundToSnap(dx / (op.pxPerMinute || 1));
+        let newStart = op.originStart;
+        let newEnd = op.originEnd;
+        if (op.type === 'move') {
+            newStart = Math.max(0, Math.min(24*60 - this.minBlockMinutes, op.originStart + deltaMins));
+            newEnd = Math.max(newStart + this.minBlockMinutes, op.originEnd + deltaMins);
+        } else if (op.type === 'resize-start') {
+            newStart = Math.max(0, Math.min(op.originEnd - this.minBlockMinutes, op.originStart + deltaMins));
+        } else if (op.type === 'resize-end') {
+            newEnd = Math.max(op.originStart + this.minBlockMinutes, Math.min(24*60, op.originEnd + deltaMins));
+        }
+        // Update visual
+        const left = Math.round(newStart * (op.pxPerMinute || 1));
+        const width = Math.max(10, Math.round((newEnd - newStart) * (op.pxPerMinute || 1)));
+        op.el.style.left = `${left}px`;
+        op.el.style.width = `${width}px`;
+
+        // Track hovered day
+        const target = document.elementFromPoint(ev.clientX, ev.clientY);
+        const tl = target && target.closest ? target.closest('.day-row__timeline') : null;
+        if (tl && tl.dataset.day) {
+            op.hoverDay = tl.dataset.day;
+        }
+        op.previewStart = newStart; op.previewEnd = newEnd;
+    }
+
+    onTimelinePointerUp(_ev) {
+        const op = this._activeDrag;
+        this._activeDrag = null;
+        document.removeEventListener('mousemove', this._onPointerMoveBound);
+        document.removeEventListener('mouseup', this._onPointerUpBound);
+        document.body.style.userSelect = '';
+        if (!op) return;
+        const toDay = op.hoverDay || op.day;
+        const apply = (tt) => {
+            const fromArr = tt.days[op.day] || (tt.days[op.day] = []);
+            const idx = fromArr.findIndex(b => b.id === op.blockId);
+            if (idx === -1) return;
+            const blk = fromArr[idx];
+            const start = this.minutesToTime(Math.round(op.previewStart || op.originStart));
+            const end = this.minutesToTime(Math.round(op.previewEnd || op.originEnd));
+            if (toDay === op.day) {
+                fromArr[idx] = { ...blk, start, end };
+            } else {
+                fromArr.splice(idx, 1);
+                const dest = tt.days[toDay] || (tt.days[toDay] = []);
+                dest.push({ ...blk, start, end });
+            }
+        };
+        this.saveTimetableOptimistic(apply, 'Updated');
+    }
+
+    nudgeBlockTime(day, blockId, deltaMins) {
+        const apply = (tt) => {
+            const arr = tt.days[day] || (tt.days[day] = []);
+            const i = arr.findIndex(b => b.id === blockId);
+            if (i === -1) return;
+            const s = this.timeToMinutes(arr[i].start);
+            const e = this.timeToMinutes(arr[i].end);
+            let ns = Math.max(0, Math.min(24*60 - this.minBlockMinutes, s + deltaMins));
+            let ne = Math.max(ns + this.minBlockMinutes, e + deltaMins);
+            arr[i].start = this.minutesToTime(ns);
+            arr[i].end = this.minutesToTime(ne);
+        };
+        this.saveTimetableOptimistic(apply, 'Updated');
+    }
+
+    resizeBlock(day, blockId, deltaEndMins) {
+        const apply = (tt) => {
+            const arr = tt.days[day] || (tt.days[day] = []);
+            const i = arr.findIndex(b => b.id === blockId);
+            if (i === -1) return;
+            const s = this.timeToMinutes(arr[i].start);
+            const e = this.timeToMinutes(arr[i].end);
+            let ne = Math.max(s + this.minBlockMinutes, Math.min(24*60, e + deltaEndMins));
+            arr[i].end = this.minutesToTime(ne);
+        };
+        this.saveTimetableOptimistic(apply, 'Updated');
+    }
+
     createTimeBlockEl(block, day, index) {
         const el = document.createElement('div');
         el.className = 'time-block';
@@ -2141,13 +2382,19 @@ class SmartMentorChatbot {
         if (!blockEl) return;
         const day = blockEl.dataset.day; const blockId = blockEl.dataset.blockId;
         if (!day || !blockId) return;
+        const snap = this.snapMinutes || 15;
 
-        // Movement shortcuts (Alt + Arrow keys)
+        // Alt + Left/Right move by snap minutes; Alt + Up/Down move between days
         if (e.altKey) {
-            if (e.key === 'ArrowUp') { e.preventDefault(); this.moveBlockRelative(day, blockId, -1); return; }
-            if (e.key === 'ArrowDown') { e.preventDefault(); this.moveBlockRelative(day, blockId, +1); return; }
-            if (e.key === 'ArrowLeft') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, -1); return; }
-            if (e.key === 'ArrowRight') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, +1); return; }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); this.nudgeBlockTime(day, blockId, -snap); return; }
+            if (e.key === 'ArrowRight') { e.preventDefault(); this.nudgeBlockTime(day, blockId, +snap); return; }
+            if (e.key === 'ArrowUp') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, -1); return; }
+            if (e.key === 'ArrowDown') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, +1); return; }
+        }
+        // Shift + Left/Right to resize duration at end
+        if (e.shiftKey) {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); this.resizeBlock(day, blockId, -snap); return; }
+            if (e.key === 'ArrowRight') { e.preventDefault(); this.resizeBlock(day, blockId, +snap); return; }
         }
 
         // Enter to edit
@@ -2341,6 +2588,11 @@ class SmartMentorChatbot {
             const saved = await window.api.saveTimetable(payload);
             this.timetable = this.normalizeTimetable(saved);
             this.showToast(successMessage, 'success');
+            if (this._suppressNextUndoToast) {
+                this._suppressNextUndoToast = false;
+            } else {
+                this.showUndoToast('Undo?', snapshot);
+            }
         } catch (err) {
             const msg = String(err || '');
             if (msg.includes('HTTP 409')) {
@@ -2352,6 +2604,11 @@ class SmartMentorChatbot {
                     const saved2 = await window.api.saveTimetable(this.timetable);
                     this.timetable = this.normalizeTimetable(saved2);
                     this.showToast(successMessage, 'success');
+                    if (this._suppressNextUndoToast) {
+                        this._suppressNextUndoToast = false;
+                    } else {
+                        this.showUndoToast('Undo?', snapshot);
+                    }
                 } catch (err2) {
                     this.timetable = snapshot;
                     this.renderTimetable();
@@ -2374,6 +2631,29 @@ class SmartMentorChatbot {
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => { toast.remove(); }, 3000);
+    }
+
+    showUndoToast(message, snapshot) {
+        const container = this.elements.toastContainer;
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = 'toast toast--success';
+        toast.setAttribute('role', 'status');
+        const btnId = 'undo-' + Math.random().toString(36).slice(2);
+        toast.innerHTML = `<span>${message}</span> <button id="${btnId}" class="link-button" aria-label="Undo last change">Undo</button>`;
+        container.appendChild(toast);
+        const btn = document.getElementById(btnId);
+        const remove = () => { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); };
+        const undo = () => {
+            this._suppressNextUndoToast = true;
+            this.saveTimetableOptimistic((tt) => {
+                tt.days = JSON.parse(JSON.stringify(snapshot.days));
+                tt.weekStart = snapshot.weekStart;
+            }, 'Undone');
+            remove();
+        };
+        if (btn) btn.addEventListener('click', undo);
+        setTimeout(remove, 5000);
     }
 
     setupCalendar() {

@@ -232,6 +232,42 @@
 .time-block--skeleton::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(148,163,184,0.2), rgba(255,255,255,0)); transform: translateX(-100%); animation: shimmer 1.2s infinite; }
 @keyframes shimmer { 100% { transform: translateX(100%); } }
 
+/* Horizontal weekly timetable layout */
+.timetable-grid.timetable-grid--rows { display: flex; flex-direction: column; gap: var(--space-4); align-items: stretch; }
+
+.day-row { background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.day-row__header { display: flex; align-items: center; justify-content: space-between; padding: var(--timetable-day-header-padding); border-bottom: 1px solid var(--border-color); font-weight: 600; }
+.day-row__header .add-block-button { width: auto; }
+
+.day-row__timeline { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--surface); padding: var(--space-3) var(--space-4); }
+.day-row__timeline::-webkit-scrollbar { height: 8px; }
+.day-row__timeline::-webkit-scrollbar-thumb { background: var(--surface-subtle); border-radius: 99px; }
+.day-row__track { position: relative; height: 64px; min-width: 960px; }
+.timetable-grid[data-density="expanded"] .day-row__track { height: 72px; }
+.timetable-grid[data-density="compact"] .day-row__track { height: 48px; }
+
+/* Timeline blocks */
+.day-row__track .time-block { position: absolute; top: 6px; display: grid; grid-template-columns: 6px 1fr auto; align-items: center; gap: var(--space-3); height: calc(100% - 12px); padding: 0 var(--space-3); border: 1px solid var(--border-color); background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); cursor: grab; }
+.day-row__track .time-block:active { cursor: grabbing; }
+.day-row__track .time-block .time-block__color { width: 6px; border-radius: 3px; height: 70%; }
+.day-row__track .time-block .time-block__actions { display: flex; gap: 4px; opacity: 0.5; }
+.day-row__track .time-block:hover .time-block__actions, .day-row__track .time-block:focus-within .time-block__actions { opacity: 1; }
+
+/* Resize handles */
+.time-block__resize { position: absolute; top: 0; width: 8px; height: 100%; cursor: ew-resize; display: grid; place-items: center; color: var(--text-tertiary); }
+.time-block__resize--start { left: -4px; }
+.time-block__resize--end { right: -4px; }
+
+/* Inline time inputs */
+.time-input { padding: 0.25rem 0.4rem; background: var(--surface-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-primary); font-size: var(--font-size-sm); }
+.time-input:focus { border-color: var(--primary-color); box-shadow: var(--focus-ring-shadow); }
+
+/* Mobile: keep rows stacked and allow horizontal timeline scroll */
+@media (max-width: 768px) {
+  .timetable-grid.timetable-grid--rows { gap: var(--space-3); }
+  .day-row__track { min-width: 1200px; }
+}
+
 /* --- MODAL AND OVERLAY STYLES --- */
 .modal-overlay { position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: var(--z-modal-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); }
 .chatbot-overlay { position: fixed; inset: 0; background: var(--overlay-backdrop); z-index: var(--z-chat-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); backdrop-filter: saturate(var(--glass-saturate)) blur(var(--overlay-blur)); }
