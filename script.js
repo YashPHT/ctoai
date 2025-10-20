@@ -124,11 +124,23 @@ class SmartMentorChatbot {
             calendarMonthLabel: document.querySelector('[data-current-month]'),
             calendarNavButtons: document.querySelectorAll('[data-calendar-nav]'),
             calendarEventsList: document.getElementById('upcoming-events-list') || document.querySelector('[data-calendar-events] .calendar-events__list'),
+            // Timetable editor elements
+            timetableGrid: document.getElementById('timetable-grid'),
             timetableSchedule: document.querySelector('[data-timetable-container] .timetable__schedule'),
             timetableEditButton: document.querySelector('[data-action="edit-timetable"]'),
-            timetableEditorModal: document.getElementById('timetable-editor-modal'),
-            timetableEditorForm: document.getElementById('timetable-editor-form'),
-            timetableJsonInput: document.getElementById('timetable-json-input'),
+            blockModal: document.getElementById('timetable-block-modal'),
+            blockForm: document.getElementById('timetable-block-form'),
+            blockFormId: document.getElementById('block-form-id'),
+            blockFormDay: document.getElementById('block-form-day'),
+            blockFormStart: document.getElementById('block-form-start'),
+            blockFormEnd: document.getElementById('block-form-end'),
+            blockFormSubject: document.getElementById('block-form-subject'),
+            blockFormLocation: document.getElementById('block-form-location'),
+            blockFormNotes: document.getElementById('block-form-notes'),
+            blockFormColor: document.getElementById('block-form-color'),
+            blockDeleteModal: document.getElementById('timetable-delete-modal'),
+            confirmDeleteBlock: document.getElementById('confirm-delete-block'),
+            // misc
             chatbotFab: document.getElementById('chatbot-fab'),
             resetChat: document.getElementById('reset-chat'),
             chatAnnouncer: document.getElementById('chat-aria-live'),
@@ -137,7 +149,8 @@ class SmartMentorChatbot {
             dayDetailModal: document.getElementById('day-detail-modal'),
             dayDetailDate: document.getElementById('day-detail-date'),
             bulkSelectAll: document.getElementById('bulk-select-all'),
-            bulkComplete: document.getElementById('bulk-complete')
+            bulkComplete: document.getElementById('bulk-complete'),
+            toastContainer: document.getElementById('toast-container')
         };
     }
     
@@ -339,6 +352,18 @@ class SmartMentorChatbot {
             this.elements.calendarNavButtons.forEach(btn => {
                 btn.addEventListener('click', () => this.handleCalendarNavClick(btn.getAttribute('data-calendar-nav')));
             });
+        }
+
+        // Timetable editor events
+        if (this.elements.blockForm) {
+            this.elements.blockForm.addEventListener('submit', (e) => this.handleTimetableBlockSave(e));
+        }
+        if (this.elements.confirmDeleteBlock) {
+            this.elements.confirmDeleteBlock.addEventListener('click', () => this.confirmDeleteBlockAction());
+        }
+        if (this.elements.timetableGrid) {
+            this.elements.timetableGrid.addEventListener('keydown', (e) => this.handleTimetableKeydown(e));
+            this.elements.timetableGrid.addEventListener('click', (e) => this.handleTimetableClick(e));
         }
 
         // KPI drilldown hooks (stub)
@@ -1709,21 +1734,417 @@ class SmartMentorChatbot {
     }
 
     async fetchTimetable() {
-        // Stub implementation
+        try {
+            const data = (window.api && window.api.getTimetable) ? await window.api.getTimetable() : null;
+            this.timetable = this.normalizeTimetable(data);
+        } catch (_) {
+            this.timetable = this.normalizeTimetable(null);
+        }
         this.renderTimetable();
         this.buildEventsFromData();
     }
 
     renderTimetable() {
-        // Stub implementation
+        const grid = this.elements.timetableGrid;
+        if (!grid) return;
+        const daysOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        const dayLabels = { monday:'Monday', tuesday:'Tuesday', wednesday:'Wednesday', thursday:'Thursday', friday:'Friday', saturday:'Saturday', sunday:'Sunday' };
+        grid.innerHTML = '';
+
+        daysOrder.forEach((day) => {
+            const col = document.createElement('section');
+            col.className = 'day-column';
+            col.dataset.day = day;
+            col.setAttribute('role','region');
+            col.setAttribute('aria-labelledby', `day-${day}-label`);
+            col.innerHTML = `
+                <div class="day-header">
+                    <span id="day-${day}-label">${dayLabels[day]}</span>
+                    <button class="icon-button add-block-button" data-action="add-block" data-day="${day}" aria-label="Add block on ${dayLabels[day]}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                </div>
+                <div class="day-blocks" role="list"></div>
+            `;
+            const blocksContainer = col.querySelector('.day-blocks');
+            const blocks = (this.timetable?.days?.[day] || []).slice();
+            blocks.forEach((b, idx) => blocks[idx] = this.ensureBlock(b));
+
+            blocks.sort((a,b) => this.timeToMinutes(a.start) - this.timeToMinutes(b.start));
+            blocks.forEach((block, index) => {
+                const el = this.createTimeBlockEl(block, day, index);
+                blocksContainer.appendChild(el);
+            });
+
+            blocksContainer.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            });
+            blocksContainer.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!this.dragState) return;
+                const from = this.dragState;
+                const toDay = day;
+                this.moveBlockToDay(from.blockId, from.day, toDay, null);
+                this.clearDragState();
+            });
+
+            grid.appendChild(col);
+        });
     }
 
     openTimetableEditor() {
-        alert("Timetable editing is not yet implemented.");
+        const today = new Date().getDay(); // 0 Sun ... 6 Sat
+        const map = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        const day = map[today] || 'monday';
+        this.openBlockForm(day);
     }
 
     async handleTimetableSave(e) {
-        // Stub
+        // legacy no-op
+        e && e.preventDefault && e.preventDefault();
+    }
+
+    // ------- Timetable Editor helpers -------
+    normalizeTimetable(data) {
+        const base = data && data.data ? data.data : data;
+        const obj = base && typeof base === 'object' ? base : {};
+        const days = obj.days && typeof obj.days === 'object' ? obj.days : {};
+        const normDays = {};
+        const keys = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        keys.forEach(k => {
+            const arr = Array.isArray(days[k]) ? days[k] : [];
+            normDays[k] = arr.map(b => this.ensureBlock(b));
+        });
+        return { version: typeof obj.version === 'number' ? obj.version : 1, weekStart: obj.weekStart || new Date().toISOString(), days: normDays, updatedAt: obj.updatedAt || new Date().toISOString() };
+    }
+
+    ensureBlock(b) {
+        const id = b && b.id ? b.id : this.generateTaskId();
+        let start = b.start || b.time || '09:00';
+        let end = b.end;
+        if (!end && b.durationMinutes && start) {
+            const s = this.timeToMinutes(start);
+            end = this.minutesToTime(s + Number(b.durationMinutes));
+        }
+        if (!end) end = '10:00';
+        return {
+            id,
+            start: this.normalizeTimeStr(start),
+            end: this.normalizeTimeStr(end),
+            subject: b.subject || 'Untitled',
+            location: b.location || b.room || '',
+            notes: b.notes || '',
+            color: b.color || '#2563eb'
+        };
+    }
+
+    normalizeTimeStr(t) {
+        if (!t || typeof t !== 'string') return '09:00';
+        const m = t.match(/^(\d{1,2}):(\d{2})/);
+        if (!m) return '09:00';
+        let hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+        let mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+        return `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
+    }
+
+    timeToMinutes(t) {
+        if (!t || typeof t !== 'string') return 0;
+        const [h, m] = t.split(':').map(n => parseInt(n, 10) || 0);
+        return h * 60 + m;
+    }
+
+    minutesToTime(mins) {
+        let m = Math.max(0, mins|0);
+        let h = Math.floor(m / 60) % 24; let mm = m % 60;
+        return `${h.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
+    }
+
+    formatHHMM(t) {
+        if (!t) return '—';
+        const [h, m] = t.split(':').map(Number);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const hh = (h % 12) || 12;
+        return `${hh}:${m.toString().padStart(2,'0')} ${ampm}`;
+    }
+
+    createTimeBlockEl(block, day, index) {
+        const el = document.createElement('div');
+        el.className = 'time-block';
+        el.setAttribute('role','listitem');
+        el.setAttribute('tabindex','0');
+        el.setAttribute('draggable','true');
+        el.dataset.blockId = block.id;
+        el.dataset.day = day;
+
+        const color = block.color || '#2563eb';
+        el.innerHTML = `
+            <div class="time-block__color" style="background:${color}"></div>
+            <div class="time-block__content">
+                <div class="time-block__title" data-inline="subject">${this.escapeHtml(block.subject || 'Untitled')}</div>
+                <div class="time-block__meta"><span class="time-block__time">${this.formatHHMM(block.start)}–${this.formatHHMM(block.end)}</span>${block.location ? `<span aria-hidden="true">•</span><span class="time-block__location">${this.escapeHtml(block.location)}</span>` : ''}</div>
+            </div>
+            <div class="time-block__actions">
+                <button class="icon-button" title="Move earlier" aria-label="Move earlier" data-action="move-up" data-day="${day}" data-block-id="${block.id}">▲</button>
+                <button class="icon-button" title="Move later" aria-label="Move later" data-action="move-down" data-day="${day}" data-block-id="${block.id}">▼</button>
+                <button class="icon-button" title="Move to previous day" aria-label="Move to previous day" data-action="move-left" data-day="${day}" data-block-id="${block.id}">◀</button>
+                <button class="icon-button" title="Move to next day" aria-label="Move to next day" data-action="move-right" data-day="${day}" data-block-id="${block.id}">▶</button>
+                <button class="icon-button" title="Edit" aria-label="Edit block" data-action="edit-block" data-day="${day}" data-block-id="${block.id}">✎</button>
+                <button class="icon-button" title="Delete" aria-label="Delete block" data-action="delete-block" data-day="${day}" data-block-id="${block.id}">🗑</button>
+            </div>
+        `;
+
+        // DnD
+        el.addEventListener('dragstart', (e) => this.onBlockDragStart(e, day, block.id));
+        el.addEventListener('dragend', (e) => this.onBlockDragEnd(e));
+        el.addEventListener('dragover', (e) => this.onBlockDragOver(e, el));
+        el.addEventListener('dragleave', (e) => this.onBlockDragLeave(e, el));
+        el.addEventListener('drop', (e) => this.onBlockDrop(e, day, el));
+
+        // Inline edit subject
+        const titleEl = el.querySelector('.time-block__title');
+        titleEl.addEventListener('dblclick', () => this.startInlineEditTitle(titleEl, day, block.id));
+
+        return el;
+    }
+
+    handleTimetableClick(e) {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const action = btn.getAttribute('data-action');
+        const day = btn.getAttribute('data-day');
+        const blockId = btn.getAttribute('data-block-id');
+        if (action === 'add-block') {
+            this.openBlockForm(day);
+        } else if (action === 'edit-block' && day && blockId) {
+            this.openBlockForm(day, blockId);
+        } else if (action === 'delete-block' && day && blockId) {
+            this.pendingDelete = { day, blockId };
+            this.openModal('timetable-delete-modal');
+        } else if (action && action.startsWith('move') && day && blockId) {
+            if (action === 'move-up') this.moveBlockRelative(day, blockId, -1);
+            if (action === 'move-down') this.moveBlockRelative(day, blockId, +1);
+            if (action === 'move-left') this.moveBlockToAdjacentDay(day, blockId, -1);
+            if (action === 'move-right') this.moveBlockToAdjacentDay(day, blockId, +1);
+        }
+    }
+
+    handleTimetableKeydown(e) {
+        if (!e.altKey) return;
+        const blockEl = e.target.closest('.time-block');
+        if (!blockEl) return;
+        const day = blockEl.dataset.day; const blockId = blockEl.dataset.blockId;
+        if (!day || !blockId) return;
+        if (e.key === 'ArrowUp') { e.preventDefault(); this.moveBlockRelative(day, blockId, -1); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.moveBlockRelative(day, blockId, +1); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, -1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); this.moveBlockToAdjacentDay(day, blockId, +1); }
+    }
+
+    startInlineEditTitle(titleEl, day, blockId) {
+        if (!titleEl || titleEl.isContentEditable) return;
+        titleEl.setAttribute('contenteditable','true');
+        titleEl.focus();
+        const done = () => {
+            titleEl.removeAttribute('contenteditable');
+            const newTitle = titleEl.textContent.trim() || 'Untitled';
+            this.saveTimetableOptimistic((tt) => {
+                const arr = tt.days[day] || []; const i = arr.findIndex(b => b.id === blockId); if (i >= 0) arr[i].subject = newTitle;
+            }, 'Updated');
+        };
+        const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } };
+        titleEl.addEventListener('blur', done, { once: true });
+        titleEl.addEventListener('keydown', onKey, { once: true });
+    }
+
+    openBlockForm(day, blockId = null) {
+        if (!this.elements.blockModal || !this.elements.blockForm) return;
+        const isEdit = !!blockId;
+        const block = isEdit ? (this.timetable.days[day] || []).find(b => b.id === blockId) : null;
+        if (this.elements.blockFormId) this.elements.blockFormId.value = block ? block.id : '';
+        if (this.elements.blockFormDay) this.elements.blockFormDay.value = day;
+        if (this.elements.blockFormStart) this.elements.blockFormStart.value = block ? block.start : '09:00';
+        if (this.elements.blockFormEnd) this.elements.blockFormEnd.value = block ? block.end : '10:00';
+        if (this.elements.blockFormSubject) this.elements.blockFormSubject.value = block ? block.subject : '';
+        if (this.elements.blockFormLocation) this.elements.blockFormLocation.value = block ? block.location || '' : '';
+        if (this.elements.blockFormNotes) this.elements.blockFormNotes.value = block ? block.notes || '' : '';
+        if (this.elements.blockFormColor) this.elements.blockFormColor.value = block ? block.color || '#2563eb' : '#2563eb';
+        const titleEl = document.getElementById('timetable-block-title');
+        if (titleEl) titleEl.textContent = isEdit ? 'Edit Time Block' : 'Add Time Block';
+        this.openModal('timetable-block-modal');
+    }
+
+    handleTimetableBlockSave(e) {
+        e.preventDefault();
+        const day = this.elements.blockFormDay?.value || 'monday';
+        const id = this.elements.blockFormId?.value || '';
+        const start = this.normalizeTimeStr(this.elements.blockFormStart?.value || '');
+        const end = this.normalizeTimeStr(this.elements.blockFormEnd?.value || '');
+        const subject = (this.elements.blockFormSubject?.value || '').trim();
+        const location = (this.elements.blockFormLocation?.value || '').trim();
+        const notes = (this.elements.blockFormNotes?.value || '').trim();
+        const color = this.elements.blockFormColor?.value || '#2563eb';
+
+        if (!subject) { this.showToast('Subject is required', 'error'); return; }
+        if (this.timeToMinutes(end) <= this.timeToMinutes(start)) { this.showToast('End must be after start', 'error'); return; }
+
+        const apply = (tt) => {
+            const arr = tt.days[day] || (tt.days[day] = []);
+            if (id) {
+                const i = arr.findIndex(b => b.id === id);
+                if (i >= 0) {
+                    arr[i] = { ...arr[i], start, end, subject, location, notes, color };
+                }
+            } else {
+                const newId = this.generateTaskId();
+                arr.push({ id: newId, start, end, subject, location, notes, color });
+            }
+        };
+
+        this.saveTimetableOptimistic(apply, 'Saved');
+        this.closeModal('timetable-block-modal');
+    }
+
+    confirmDeleteBlockAction() {
+        if (!this.pendingDelete) return;
+        const { day, blockId } = this.pendingDelete;
+        const apply = (tt) => {
+            const arr = tt.days[day] || [];
+            const idx = arr.findIndex(b => b.id === blockId);
+            if (idx >= 0) arr.splice(idx, 1);
+        };
+        this.saveTimetableOptimistic(apply, 'Deleted');
+        this.closeModal('timetable-delete-modal');
+        this.pendingDelete = null;
+    }
+
+    moveBlockRelative(day, blockId, delta) {
+        const apply = (tt) => {
+            const arr = tt.days[day] || [];
+            const i = arr.findIndex(b => b.id === blockId);
+            if (i === -1) return;
+            const j = Math.max(0, Math.min(arr.length - 1, i + delta));
+            if (i === j) return;
+            const [blk] = arr.splice(i, 1);
+            arr.splice(j, 0, blk);
+        };
+        this.saveTimetableOptimistic(apply, 'Reordered');
+    }
+
+    moveBlockToAdjacentDay(day, blockId, dir) {
+        const order = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        const idx = order.indexOf(day);
+        const toIdx = Math.max(0, Math.min(order.length - 1, idx + dir));
+        const toDay = order[toIdx];
+        this.moveBlockToDay(blockId, day, toDay, null);
+    }
+
+    moveBlockToDay(blockId, fromDay, toDay, toIndex = null) {
+        if (fromDay === toDay && toIndex == null) {
+            // dropping within same day to end
+            toIndex = (this.timetable.days[toDay] || []).length - 1;
+        }
+        const apply = (tt) => {
+            const fromArr = tt.days[fromDay] || [];
+            const i = fromArr.findIndex(b => b.id === blockId);
+            if (i === -1) return;
+            const [blk] = fromArr.splice(i, 1);
+            const dest = tt.days[toDay] || (tt.days[toDay] = []);
+            if (toIndex == null || toIndex < 0 || toIndex > dest.length) dest.push(blk); else dest.splice(toIndex, 0, blk);
+        };
+        this.saveTimetableOptimistic(apply, 'Moved');
+    }
+
+    onBlockDragStart(e, day, blockId) {
+        this.dragState = { day, blockId };
+        const target = e.currentTarget;
+        target.classList.add('dragging');
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', blockId);
+        }
+    }
+    onBlockDragEnd(e) {
+        const target = e.currentTarget;
+        target.classList.remove('dragging');
+        this.clearDragState();
+    }
+    onBlockDragOver(e, el) {
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        el.classList.toggle('drop-target-before', before);
+        el.classList.toggle('drop-target-after', !before);
+    }
+    onBlockDragLeave(_e, el) {
+        el.classList.remove('drop-target-before');
+        el.classList.remove('drop-target-after');
+    }
+    onBlockDrop(e, day, el) {
+        e.preventDefault();
+        if (!this.dragState) return;
+        const before = el.classList.contains('drop-target-before');
+        const id = this.dragState.blockId; const fromDay = this.dragState.day;
+        const arr = this.timetable.days[day] || [];
+        const targetId = el.dataset.blockId;
+        const idx = arr.findIndex(b => b.id === targetId);
+        const toIndex = Math.max(0, before ? idx : idx + 1);
+        this.moveBlockToDay(id, fromDay, day, toIndex);
+        this.clearDragState();
+        el.classList.remove('drop-target-before');
+        el.classList.remove('drop-target-after');
+    }
+    clearDragState() { this.dragState = null; }
+
+    escapeHtml(s) {
+        return (s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[c]));
+    }
+
+    async saveTimetableOptimistic(applyChange, successMessage = 'Saved') {
+        if (!this.timetable) this.timetable = this.normalizeTimetable(null);
+        const snapshot = JSON.parse(JSON.stringify(this.timetable));
+        try {
+            applyChange(this.timetable);
+        } catch (_) {}
+        this.renderTimetable();
+        try {
+            const payload = { ...this.timetable };
+            const saved = await window.api.saveTimetable(payload);
+            this.timetable = this.normalizeTimetable(saved);
+            this.showToast(successMessage, 'success');
+        } catch (err) {
+            const msg = String(err || '');
+            if (msg.includes('HTTP 409')) {
+                try {
+                    this.showToast('Detected a newer version. Syncing…', 'warning');
+                    const latest = await window.api.getTimetable();
+                    this.timetable = this.normalizeTimetable(latest);
+                    try { applyChange(this.timetable); } catch (_) {}
+                    const saved2 = await window.api.saveTimetable(this.timetable);
+                    this.timetable = this.normalizeTimetable(saved2);
+                    this.showToast(successMessage, 'success');
+                } catch (err2) {
+                    this.timetable = snapshot;
+                    this.renderTimetable();
+                    this.showToast('Save failed', 'error');
+                }
+            } else {
+                this.timetable = snapshot;
+                this.renderTimetable();
+                this.showToast('Save failed', 'error');
+            }
+        }
+    }
+
+    showToast(message, type = 'success') {
+        const container = this.elements.toastContainer;
+        if (!container) { console.log(`[${type}]`, message); return; }
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type}`;
+        toast.setAttribute('role', 'status');
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, 3000);
     }
 
     setupCalendar() {

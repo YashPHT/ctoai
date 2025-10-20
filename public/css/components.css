@@ -105,9 +105,47 @@
 .progress-bar { width: 100%; height: 6px; background-color: var(--surface-subtle); border-radius: 99px; overflow: hidden; }
 .progress-bar-fill { height: 100%; background: var(--primary-color); border-radius: 99px; }
 
+/* Timetable Editor */
+.timetable-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+.timetable-keyboard-help { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.timetable-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-4); align-items: start; }
+.day-column { background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.day-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-color); font-weight: 600; }
+.day-blocks { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); }
+.add-block-button { width: 100%; justify-content: center; margin-top: var(--space-2); }
+
+.time-block { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); padding: var(--space-3); background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); cursor: grab; }
+.time-block:active { cursor: grabbing; }
+.time-block__color { width: 6px; border-radius: 3px; background: var(--primary-color); }
+.time-block__content { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.time-block__title { font-weight: 600; color: var(--text-primary); }
+.time-block__meta { font-size: var(--font-size-sm); color: var(--text-secondary); display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.time-block__actions { display: flex; gap: 4px; align-items: center; opacity: 0.4; }
+.time-block:focus-within .time-block__actions, .time-block:hover .time-block__actions { opacity: 1; }
+.time-block__handle { width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--text-tertiary); border: 1px dashed var(--border-color); cursor: grab; }
+
+.drop-target-before { outline: 2px dashed var(--primary-color); outline-offset: 2px; }
+.drop-target-after { box-shadow: inset 0 -2px 0 var(--primary-color); }
+.dragging { opacity: 0.6; }
+
+/* Toasts */
+.toast-container { position: fixed; right: 1rem; bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 2000; }
+.toast { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); padding: 0.6rem 0.8rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); animation: fadeIn var(--transition-normal); }
+.toast--success { border-left-color: var(--success-color); }
+.toast--error { border-left-color: var(--danger-color); }
+.toast--warning { border-left-color: var(--warning-color); }
+
+/* Responsive for Timetable */
+@media (max-width: 1199px) {
+  .timetable-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 768px) {
+  .timetable-grid { grid-template-columns: 1fr; }
+}
+
 /* --- MODAL AND OVERLAY STYLES --- */
 .modal-overlay, .chatbot-overlay { position: fixed; inset: 0; background-color: rgba(9, 30, 66, 0.54); z-index: var(--z-modal-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; }
-.modal-overlay.active, .chatbot-overlay.active { opacity: 1; pointer-events: auto; }
+
 .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); max-width: 500px; width: calc(100% - 2rem); max-height: 90vh; z-index: var(--z-modal); opacity: 0; transition: all var(--transition-normal); pointer-events: none; }
 .modal.active { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
 .modal-content { background-color: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-xl); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }

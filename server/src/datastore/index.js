@@ -118,30 +118,32 @@ function seedFor(collection) {
       ];
     case 'timetable':
       return {
+        version: 1,
         weekStart: new Date().toISOString(),
         days: {
           monday: [
-            { time: '09:00', subject: 'Mathematics', room: 'Room 101', durationMinutes: 60 },
-            { time: '10:30', subject: 'Chemistry', room: 'Lab B', durationMinutes: 60 }
+            { id: 'mon-1', start: '09:00', end: '10:00', subject: 'Mathematics', location: 'Room 101', notes: '', color: '#2563eb' },
+            { id: 'mon-2', start: '10:30', end: '11:30', subject: 'Chemistry', location: 'Lab B', notes: '', color: '#0ea5e9' }
           ],
           tuesday: [
-            { time: '09:00', subject: 'Physics', room: 'Lab A', durationMinutes: 60 },
-            { time: '13:30', subject: 'History', room: 'Room 204', durationMinutes: 60 }
+            { id: 'tue-1', start: '09:00', end: '10:00', subject: 'Physics', location: 'Lab A', notes: '', color: '#16a34a' },
+            { id: 'tue-2', start: '13:30', end: '14:30', subject: 'History', location: 'Room 204', notes: '', color: '#f59e0b' }
           ],
           wednesday: [
-            { time: '11:00', subject: 'English', room: 'Room 110', durationMinutes: 60 }
+            { id: 'wed-1', start: '11:00', end: '12:00', subject: 'English', location: 'Room 110', notes: '', color: '#64748b' }
           ],
           thursday: [
-            { time: '14:00', subject: 'Biology', room: 'Room 303', durationMinutes: 90 }
+            { id: 'thu-1', start: '14:00', end: '15:30', subject: 'Biology', location: 'Room 303', notes: '', color: '#22c55e' }
           ],
           friday: [
-            { time: '10:00', subject: 'Computer Science', room: 'Lab C', durationMinutes: 90 }
+            { id: 'fri-1', start: '10:00', end: '11:30', subject: 'Computer Science', location: 'Lab C', notes: '', color: '#a855f7' }
           ],
           saturday: [],
           sunday: []
         },
         updatedAt: new Date().toISOString()
       };
+
     case 'events':
       return [
         { id: 'e1', title: 'Math Midterm', date: new Date(Date.now() + 5*24*60*60*1000).toISOString(), subject: 'Mathematics', type: 'exam' },
