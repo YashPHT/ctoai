@@ -102,6 +102,30 @@
 .empty-state h3 { font-size: var(--font-size-lg); font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-2); }
 .empty-state p { color: var(--text-secondary); max-width: 30ch; margin: 0 auto var(--space-4); }
 
+/* Assessments */
+.filters-row { display: flex; align-items: center; gap: var(--space-2); }
+.filters-row select, .filters-row input[type="date"] { padding: 0.4rem 0.6rem; background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); }
+.assessment-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.assessment-item { display: grid; grid-template-columns: 1fr auto auto; gap: var(--space-3); align-items: center; padding: var(--space-3); border-bottom: 1px solid var(--border-color); }
+.assessment-item:last-child { border-bottom: none; }
+.assessment-item__left { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.assessment-item__title { font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assessment-item__meta { font-size: var(--font-size-sm); color: var(--text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.assessment-item__chart { width: 110px; }
+.assessment-item__actions { display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.status-badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 12px; border: 1px solid var(--border-color); background: var(--surface-subtle); }
+.status-badge--upcoming { color: var(--primary-color); background: var(--primary-soft-bg); border-color: rgba(37,99,235,0.3); }
+.status-badge--completed { color: var(--success-color); background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.35); }
+.status-badge--overdue { color: var(--danger-color); background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.35); }
+.status-badge--unscheduled { color: var(--text-secondary); background: var(--surface-subtle); border-color: var(--border-color); }
+.assessment-resources { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 var(--space-3) var(--space-3); }
+.assessment-resources__empty { color: var(--text-secondary); font-size: var(--font-size-sm); padding: 0 var(--space-3) var(--space-1); }
+.resource-link { display: inline-flex; align-items: center; gap: 6px; padding: 0.3rem 0.55rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--primary-color); background: var(--surface); }
+
+/* Skeleton */
+.skeleton { position: relative; background: linear-gradient(90deg, var(--surface-subtle), var(--surface), var(--surface-subtle)); background-size: 400% 100%; animation: shimmer 1.2s ease-in-out infinite; border-radius: var(--radius-md); height: 58px; }
+@keyframes shimmer { 0% { background-position: 0 0;} 100% { background-position: -135% 0;} }
+
 /* Progress Bar */
 .progress-bar { width: 100%; height: 6px; background-color: var(--surface-subtle); border-radius: 99px; overflow: hidden; }
 .progress-bar-fill { height: 100%; background: var(--primary-color); border-radius: 99px; }

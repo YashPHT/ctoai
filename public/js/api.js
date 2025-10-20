@@ -143,6 +143,64 @@
         });
         return data?.data || data;
       } finally { this.setLoading(false); }
+    },
+
+    // Assessments API
+    async getAssessments(filters = {}) {
+      this.setError(null); this.setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (filters.subject) params.set('subject', filters.subject);
+        if (filters.from) params.set('from', filters.from);
+        if (filters.to) params.set('to', filters.to);
+        if (filters.status) params.set('status', filters.status);
+        const q = params.toString();
+        const url = '/api/assessments' + (q ? `?${q}` : '');
+        const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Accept': 'application/json' } }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.data)) return data.data;
+        return [];
+      } finally { this.setLoading(false); }
+    },
+
+    async createAssessment(assessment) {
+      this.setError(null); this.setLoading(true);
+      try {
+        const data = await fetchWithRetry('/api/assessments', { method: 'POST', ...toJSONBody(assessment) }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        return data?.data || assessment;
+      } finally { this.setLoading(false); }
+    },
+
+    async updateAssessment(id, assessment) {
+      this.setError(null); this.setLoading(true);
+      try {
+        const data = await fetchWithRetry(`/api/assessments/${encodeURIComponent(id)}`, { method: 'PUT', ...toJSONBody(assessment) }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        return data?.data || assessment;
+      } finally { this.setLoading(false); }
+    },
+
+    async deleteAssessment(id) {
+      this.setError(null); this.setLoading(true);
+      try {
+        await fetchWithRetry(`/api/assessments/${encodeURIComponent(id)}`, { method: 'DELETE' }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        return true;
+      } finally { this.setLoading(false); }
     }
   };
 

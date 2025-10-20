@@ -26,7 +26,7 @@ const state = {
   dataDir: null,
   cache: new Map(), // collection -> data
   initialized: false,
-  knownCollections: ['tasks', 'subjects', 'timetable', 'events', 'users', 'chat']
+  knownCollections: ['tasks', 'subjects', 'timetable', 'events', 'users', 'chat', 'assessments']
 };
 
 const getDataDir = () => {
@@ -159,6 +159,50 @@ function seedFor(collection) {
           { role: 'user', content: 'Hello', timestamp: new Date().toISOString() },
           { role: 'assistant', content: 'Hi! How can I help you today?', timestamp: new Date().toISOString() }
         ], status: 'active' }
+      ];
+    case 'assessments':
+      return [
+        {
+          id: 'a1',
+          title: 'Math Midterm',
+          subject: 'Mathematics',
+          date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'upcoming',
+          weight: 0.3,
+          scoreHistory: [72, 78, 81, 85, 88],
+          resources: [
+            { label: 'Study Guide', url: 'https://example.com/math-midterm-guide' },
+            { label: 'Practice Problems', url: 'https://example.com/math-practice' }
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'a2',
+          title: 'Chemistry Quiz',
+          subject: 'Chemistry',
+          date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'upcoming',
+          weight: 0.1,
+          scoreHistory: [65, 70, 74, 76, 80],
+          resources: [
+            { label: 'Chapter 4 Notes', url: 'https://example.com/chem-notes' }
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'a3',
+          title: 'History Essay',
+          subject: 'History',
+          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'completed',
+          weight: 0.2,
+          scoreHistory: [78, 80, 84, 90],
+          resources: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
       ];
     default:
       return [];
