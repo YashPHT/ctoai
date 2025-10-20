@@ -76,7 +76,37 @@
             <div class="dashboard-card__content">
               <div class="timetable-editor" data-timetable-container>
                 <div class="timetable-toolbar" aria-label="Timetable controls">
-                  <div class="timetable-keyboard-help" role="note">Drag and drop to reorder. Keyboard: Alt + Arrow keys to move a focused block. Enter to edit.</div>
+                  <div class="timetable-controls">
+                    <div class="timetable-filters">
+                      <label class="sr-only" for="timetable-day-filter">Filter by day</label>
+                      <select id="timetable-day-filter" aria-label="Filter by day">
+                        <option value="all">All days</option>
+                        <option value="monday">Monday</option>
+                        <option value="tuesday">Tuesday</option>
+                        <option value="wednesday">Wednesday</option>
+                        <option value="thursday">Thursday</option>
+                        <option value="friday">Friday</option>
+                        <option value="saturday">Saturday</option>
+                        <option value="sunday">Sunday</option>
+                      </select>
+                      <label class="sr-only" for="timetable-subject-filter">Filter by subject</label>
+                      <input id="timetable-subject-filter" type="search" placeholder="Filter by subject" aria-label="Filter by subject" />
+                      <button class="icon-button" id="timetable-clear-filters" title="Clear filters" aria-label="Clear filters">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      </button>
+                    </div>
+                    <div class="timetable-actions">
+                      <div class="progress-view-toggle" id="timetable-density-toggle" role="group" aria-label="Row density">
+                        <button class="progress-view-toggle__button" data-density="compact" aria-pressed="false">Compact</button>
+                        <button class="progress-view-toggle__button" data-density="expanded" aria-pressed="true">Expanded</button>
+                      </div>
+                      <button class="secondary-button" id="add-block-global" aria-label="Add time block">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>Add Block</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="timetable-keyboard-help" role="note">Drag to reorder. Keyboard: Alt + Arrow keys move; Enter to edit; Delete removes; Ctrl/Cmd + D duplicates.</div>
                 </div>
                 <div id="timetable-grid" class="timetable-grid" role="grid" aria-label="Weekly timetable"></div>
               </div>
