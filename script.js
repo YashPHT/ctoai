@@ -988,7 +988,12 @@ class SmartMentorChatbot {
         const retryBtn = document.getElementById('retry-fetch-tasks');
         if (retryBtn) retryBtn.addEventListener('click', () => this.refreshTasks());
 
-        const tasks = this.getSortedTasks();
+        let tasks = this.getSortedTasks();
+        const params = new URLSearchParams(window.location.search || '');
+        const filterSubject = (params.get('subject') || '').toLowerCase();
+        if (filterSubject) {
+            tasks = tasks.filter(t => (t.subject || '').toLowerCase() === filterSubject);
+        }
         
         tasks.forEach((task) => {
             const taskEl = this.createTaskElement(task); // Use a helper function for clarity

@@ -149,6 +149,57 @@
       } finally { this.setLoading(false); }
     },
 
+    // Subjects API
+    async getSubjects() {
+      this.setError(null); this.setLoading(true);
+      try {
+        const data = await fetchWithRetry('/api/subjects', { method: 'GET', headers: { 'Accept': 'application/json' } }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.data)) return data.data;
+        return [];
+      } finally { this.setLoading(false); }
+    },
+
+    async createSubject(subject) {
+      this.setError(null); this.setLoading(true);
+      try {
+        const data = await fetchWithRetry('/api/subjects', { method: 'POST', ...toJSONBody(subject) }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        return data?.data || subject;
+      } finally { this.setLoading(false); }
+    },
+
+    async updateSubject(id, subject) {
+      this.setError(null); this.setLoading(true);
+      try {
+        const data = await fetchWithRetry(`/api/subjects/${encodeURIComponent(id)}`, { method: 'PUT', ...toJSONBody(subject) }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        return data?.data || subject;
+      } finally { this.setLoading(false); }
+    },
+
+    async deleteSubject(id) {
+      this.setError(null); this.setLoading(true);
+      try {
+        await fetchWithRetry(`/api/subjects/${encodeURIComponent(id)}`, { method: 'DELETE' }, {
+          onError: (e) => this.setError(e),
+          onFinalError: (e) => this.setError(e),
+          onLoadingChange: (v) => this.setLoading(v)
+        });
+        return true;
+      } finally { this.setLoading(false); }
+    },
+
     // Assessments API
     async getAssessments(filters = {}) {
       this.setError(null); this.setLoading(true);
