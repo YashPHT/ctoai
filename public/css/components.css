@@ -18,7 +18,8 @@
 .dashboard-header__action-button, .dashboard-header__icon-button { border: 1px solid var(--border-color); background-color: var(--surface); }
 
 /* Dashboard Cards */
-.dashboard-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.dashboard-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); transition: transform var(--transition-fast), box-shadow var(--transition-fast); will-change: transform; }
+.dashboard-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .dashboard-card__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border-bottom: 1px solid var(--border-color); }
 .dashboard-card__title-group { display: flex; align-items: center; gap: var(--space-3); }
 .dashboard-card__title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-lg); font-weight: 600; color: var(--text-primary); }
@@ -26,7 +27,7 @@
 .dashboard-card__content { padding: var(--space-5); flex: 1; }
 
 /* KPI Cards */
-.kpi-card { padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); transition: transform var(--transition-fast), box-shadow var(--transition-fast); }
+.kpi-card { padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); transition: transform var(--transition-fast), box-shadow var(--transition-fast); will-change: transform; }
 .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .kpi-label { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1); }
 .kpi-value { font-weight: 600; font-size: var(--font-size-2xl); color: var(--text-primary); }
@@ -144,11 +145,14 @@
 }
 
 /* --- MODAL AND OVERLAY STYLES --- */
-.modal-overlay, .chatbot-overlay { position: fixed; inset: 0; background-color: rgba(9, 30, 66, 0.54); z-index: var(--z-modal-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: var(--z-modal-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.chatbot-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); z-index: var(--z-chat-overlay); opacity: 0; transition: opacity var(--transition-normal); pointer-events: none; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.modal-overlay.active, .chatbot-overlay.active { opacity: 1; pointer-events: auto; }
 
-.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); max-width: 500px; width: calc(100% - 2rem); max-height: 90vh; z-index: var(--z-modal); opacity: 0; transition: all var(--transition-normal); pointer-events: none; }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.96); max-width: 560px; width: calc(100% - 2rem); max-height: 90vh; z-index: var(--z-modal); opacity: 0; transition: transform var(--transition-normal), opacity var(--transition-normal); pointer-events: none; will-change: transform, opacity; }
 .modal.active { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
-.modal-content { background-color: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-xl); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+.modal-content { background-color: rgba(255, 255, 255, 0.7); -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px); border-radius: var(--radius-lg); border: 1px solid rgba(255, 255, 255, 0.35); box-shadow: 0 20px 40px -8px rgb(2 6 23 / 0.35), 0 4px 6px -4px rgb(2 6 23 / 0.2); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+[data-theme="dark"] .modal-content { background-color: rgba(30, 41, 59, 0.65); border-color: rgba(148, 163, 184, 0.18); box-shadow: 0 20px 40px -8px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.4); }
 .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
 .modal-header h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
 .modal-subtitle { font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem; }
@@ -163,7 +167,7 @@
 .modal-actions-stack button { width: 100%; }
 
 /* --- CHATBOT STYLES --- */
-.chatbot-modal { position: fixed; top: 0; right: 0; width: 100%; max-width: 420px; height: 100%; z-index: var(--z-chat); transform: translateX(100%); transition: transform var(--transition-slow); }
+.chatbot-modal { position: fixed; top: 0; right: 0; width: 100%; max-width: 420px; height: 100%; z-index: var(--z-chat); transform: translateX(100%); transition: transform var(--transition-slow); will-change: transform; }
 .chatbot-modal.active { transform: translateX(0); }
 .chatbot-container { height: 100%; background-color: var(--surface); border-left: 1px solid var(--border-color); box-shadow: var(--shadow-xl); display: flex; flex-direction: column; }
 .chatbot-header { padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
@@ -191,8 +195,12 @@
 .send-button { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary-color); color: white; display: grid; place-items: center; box-shadow: var(--shadow-sm); flex-shrink: 0; }
 
 /* FAB Buttons */
-.chatbot-fab, #add-task-fab { width: 56px; height: 56px; border-radius: 50%; box-shadow: var(--shadow-lg); transition: transform var(--transition-fast), box-shadow var(--transition-fast); }
+.chatbot-fab, #add-task-fab { width: 56px; height: 56px; border-radius: 50%; box-shadow: var(--shadow-lg); transition: transform var(--transition-fast), box-shadow var(--transition-fast); will-change: transform; }
 .chatbot-fab:hover, #add-task-fab:hover { transform: translateY(-2px); box-shadow: var(--shadow-xl); }
+
+/* Motion utilities */
+@keyframes chartIn { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.chart-enter { animation: chartIn var(--transition-normal); will-change: transform, opacity; }
 
 @media (max-width: 480px) {
   .chatbot-modal { max-width: 100vw; }

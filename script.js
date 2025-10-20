@@ -1695,6 +1695,8 @@ class SmartMentorChatbot {
     drawLineChart(view) {
         const canvas = this.elements.progressGraphCanvas;
         if (!canvas || !this.analytics || !window.Chart) return;
+        // entrance motion
+        try { canvas.classList.add('chart-enter'); setTimeout(() => { canvas.classList.remove('chart-enter'); }, 400); } catch(_) {}
         
         const dataMap = {
             weekly: { data: this.analytics.trend.weekly, labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
