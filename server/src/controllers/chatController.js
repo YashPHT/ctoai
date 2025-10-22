@@ -1,4 +1,7 @@
-const datastore = require('../datastore');
+const ChatHistory = require('../models/ChatHistory');
+const Task = require('../models/Task');
+const Subject = require('../models/Subject');
+const Event = require('../models/Event');
 const { callGemini } = require('../services/geminiService');
 const { validateIntentResponse, executeIntent, normalizeJsonText } = require('../services/intentExec');
 
@@ -12,50 +15,6 @@ function checkRateLimit(key, limit = 20, windowMs = 60_000) {
   recent.push(now);
   rateBuckets.set(key, recent);
   return true;
-}
-
-function buildSessionRecord(sessionId) {
-  return {
-    sessionId,
-    messages: [],
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    lastMessageAt: new Date().toISOString()
-  };
-}
-
-async function upsertSession(session) {
-  await datastore.update('chat', (sessions) => {
-    const arr = Array.isArray(sessions) ? sessions : [];
-    const idx = arr.findIndex(s => s.sessionId === session.sessionId);
-    if (idx === -1) return [...arr, session];
-    const next = { ...arr[idx], ...session };
-    arr[idx] = next;
-    return arr;
-  });
-}
-
-async function appendMessage(sessionId, msg) {
-  await datastore.update('chat', (sessions) => {
-    const arr = Array.isArray(sessions) ? sessions : [];
-    const idx = arr.findIndex(s => s.sessionId === sessionId);
-    if (idx === -1) return arr;
-    const sess = arr[idx];
-    const messages = Array.isArray(sess.messages) ? sess.messages.slice() : [];
-    messages.push({
-      role: msg.role,
-      content: String(msg.content || ''),
-      timestamp: new Date().toISOString(),
-      metadata: msg.metadata || {}
-    });
-    arr[idx] = { ...sess, messages, lastMessageAt: new Date().toISOString() };
-    return arr;
-  });
-}
-
-function getSession(sessionId) {
-  const sessions = datastore.get('chat') || [];
-  return sessions.find(s => s.sessionId === sessionId) || null;
 }
 
 const chatController = {
@@ -76,19 +35,23 @@ const chatController = {
       }
 
       // Ensure session exists
-      let session = sessionId ? getSession(sessionId) : null;
+      let session = sessionId ? await ChatHistory.findOne({ sessionId }) : null;
       if (!session) {
         sessionId = `session_${Date.now()}`;
-        session = buildSessionRecord(sessionId);
-        await upsertSession(session);
+        session = new ChatHistory({
+          sessionId,
+          status: 'active',
+          messages: []
+        });
+        await session.save();
       }
 
-      // Append user message
-      await appendMessage(sessionId, { role: 'user', content: userMessage });
-      session = getSession(sessionId);
+      // Add user message
+      session.addMessage('user', userMessage);
+      await session.save();
 
       // Prepare messages for Gemini
-      const messages = (session?.messages || []).slice(-10);
+      const messages = session.getRecentMessages(10);
 
       // Call Gemini
       const { text } = await callGemini({ messages });
@@ -112,10 +75,21 @@ const chatController = {
       if (parsed.intent && parsed.intent !== 'none') {
         execResult = await executeIntent(parsed.intent, parsed.payload || {});
       }
-      const resources = execResult.resources || { tasks: datastore.get('tasks') || [], subjects: datastore.get('subjects') || [], events: datastore.get('events') || [] };
+      
+      // Fetch resources for response
+      const tasks = await Task.find().lean();
+      const subjects = await Subject.find().lean();
+      const events = await Event.find().lean();
+      
+      const resources = execResult.resources || { 
+        tasks: tasks.map(t => ({ ...t, id: t._id.toString(), _id: undefined, __v: undefined })),
+        subjects: subjects.map(s => ({ ...s, id: s._id.toString(), _id: undefined, __v: undefined })),
+        events: events.map(e => ({ ...e, id: e._id.toString(), _id: undefined, __v: undefined }))
+      };
 
       // Store assistant message
-      await appendMessage(sessionId, { role: 'assistant', content: parsed.reply, metadata: { intent: parsed.intent, payload: parsed.payload } });
+      session.addMessage('assistant', parsed.reply, { intent: parsed.intent, payload: parsed.payload });
+      await session.save();
 
       res.json({
         success: true,
@@ -129,6 +103,7 @@ const chatController = {
         }
       });
     } catch (error) {
+      console.error('Error processing chat message:', error);
       const safeMsg = process.env.NODE_ENV === 'development' ? error.message : 'Internal error';
       res.status(error.statusCode || 500).json({ success: false, message: 'Error processing chat message', error: safeMsg });
     }
@@ -137,10 +112,22 @@ const chatController = {
   getChatHistory: async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const session = getSession(sessionId);
-      if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
-      res.json({ success: true, message: 'Chat history retrieved successfully', data: session });
+      const session = await ChatHistory.findOne({ sessionId }).lean();
+      
+      if (!session) {
+        return res.status(404).json({ success: false, message: 'Session not found' });
+      }
+      
+      // Format response
+      const formattedSession = {
+        ...session,
+        _id: undefined,
+        __v: undefined
+      };
+      
+      res.json({ success: true, message: 'Chat history retrieved successfully', data: formattedSession });
     } catch (error) {
+      console.error('Error retrieving chat history:', error);
       res.status(500).json({ success: false, message: 'Error retrieving chat history', error: error.message });
     }
   },
@@ -148,10 +135,24 @@ const chatController = {
   createChatSession: async (req, res) => {
     try {
       const sessionId = `session_${Date.now()}`;
-      const session = buildSessionRecord(sessionId);
-      await upsertSession(session);
-      res.status(201).json({ success: true, message: 'Chat session created successfully', data: { sessionId, status: session.status, createdAt: session.createdAt } });
+      const session = new ChatHistory({
+        sessionId,
+        status: 'active',
+        messages: []
+      });
+      await session.save();
+      
+      res.status(201).json({ 
+        success: true, 
+        message: 'Chat session created successfully', 
+        data: { 
+          sessionId, 
+          status: session.status, 
+          createdAt: session.createdAt 
+        } 
+      });
     } catch (error) {
+      console.error('Error creating chat session:', error);
       res.status(500).json({ success: false, message: 'Error creating chat session', error: error.message });
     }
   },
@@ -159,17 +160,15 @@ const chatController = {
   deleteChatHistory: async (req, res) => {
     try {
       const { sessionId } = req.params;
-      let removed = false;
-      await datastore.update('chat', (sessions) => {
-        const arr = Array.isArray(sessions) ? sessions : [];
-        const before = arr.length;
-        const filtered = arr.filter(s => s.sessionId !== sessionId);
-        removed = before !== filtered.length;
-        return filtered;
-      });
-      if (!removed) return res.status(404).json({ success: false, message: 'Session not found' });
+      const result = await ChatHistory.findOneAndDelete({ sessionId });
+      
+      if (!result) {
+        return res.status(404).json({ success: false, message: 'Session not found' });
+      }
+      
       res.json({ success: true, message: 'Chat history deleted successfully', data: { sessionId } });
     } catch (error) {
+      console.error('Error deleting chat history:', error);
       res.status(500).json({ success: false, message: 'Error deleting chat history', error: error.message });
     }
   }

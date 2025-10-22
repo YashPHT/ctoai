@@ -1,5 +1,4 @@
-const crypto = require('crypto');
-const datastore = require('../datastore');
+const Task = require('../models/Task');
 
 const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
 const STATUSES = ['pending', 'in-progress', 'completed', 'overdue', 'cancelled'];
@@ -45,17 +44,52 @@ function validateTaskPayload(payload, isUpdate = false) {
   return { valid: errors.length === 0, errors };
 }
 
+// Helper to convert MongoDB document to plain object with 'id' field for backward compatibility
+function toResponseFormat(doc) {
+  if (!doc) return null;
+  const obj = doc.toObject ? doc.toObject() : doc;
+  return {
+    id: obj._id.toString(),
+    ...obj,
+    _id: undefined,
+    __v: undefined
+  };
+}
+
 const taskController = {
   getAllTasks: async (req, res) => {
     try {
-      const tasks = datastore.get('tasks') || [];
+      const query = {};
+      
+      // Support filtering by status, subject, priority
+      if (req.query.status) {
+        query.status = req.query.status;
+      }
+      if (req.query.subject) {
+        query.subject = req.query.subject;
+      }
+      if (req.query.priority) {
+        query.priority = req.query.priority;
+      }
+      
+      const tasks = await Task.find(query).sort({ priorityScore: -1, dueDate: 1 }).lean();
+      
+      // Convert to response format with 'id' field
+      const formattedTasks = tasks.map(task => ({
+        id: task._id.toString(),
+        ...task,
+        _id: undefined,
+        __v: undefined
+      }));
+      
       res.json({
         success: true,
         message: 'Tasks retrieved successfully',
-        data: tasks,
-        count: tasks.length
+        data: formattedTasks,
+        count: formattedTasks.length
       });
     } catch (error) {
+      console.error('Error retrieving tasks:', error);
       res.status(500).json({
         success: false,
         message: 'Error retrieving tasks',
@@ -67,13 +101,27 @@ const taskController = {
   getTaskById: async (req, res) => {
     try {
       const { id } = req.params;
-      const tasks = datastore.get('tasks') || [];
-      const task = tasks.find(t => t.id === id);
+      const task = await Task.findById(id).lean();
+      
       if (!task) {
         return res.status(404).json({ success: false, message: 'Task not found' });
       }
-      res.json({ success: true, message: 'Task retrieved successfully', data: task });
+      
+      const formattedTask = {
+        id: task._id.toString(),
+        ...task,
+        _id: undefined,
+        __v: undefined
+      };
+      
+      res.json({ success: true, message: 'Task retrieved successfully', data: formattedTask });
     } catch (error) {
+      console.error('Error retrieving task:', error);
+      
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid task ID format' });
+      }
+      
       res.status(500).json({
         success: false,
         message: 'Error retrieving task',
@@ -86,35 +134,45 @@ const taskController = {
     try {
       const payload = req.body || {};
       const { valid, errors } = validateTaskPayload(payload, false);
+      
       if (!valid) {
         return res.status(400).json({ success: false, message: 'Invalid task payload', errors });
       }
 
-      const newTask = {
-        id: `t_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}`,
+      const taskData = {
         title: payload.title.trim(),
         description: payload.description || '',
         subject: payload.subject || null,
-        dueDate: payload.dueDate ? new Date(payload.dueDate).toISOString() : null,
+        dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
         priority: payload.priority || 'Medium',
         urgency: payload.urgency || null,
         difficulty: payload.difficulty || null,
+        preparation: payload.preparation || 'minimal',
+        revision: payload.revision || 0,
         status: payload.status || 'pending',
         estimatedDuration: typeof payload.estimatedDuration === 'number' ? payload.estimatedDuration : null,
         actualDuration: typeof payload.actualDuration === 'number' ? payload.actualDuration : null,
         tags: Array.isArray(payload.tags) ? payload.tags : [],
-        notes: payload.notes || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        notes: payload.notes || ''
       };
 
-      await datastore.update('tasks', (tasks) => {
-        const arr = Array.isArray(tasks) ? tasks : [];
-        return [...arr, newTask];
-      });
+      const task = new Task(taskData);
+      await task.save();
+      
+      const formattedTask = toResponseFormat(task);
 
-      res.status(201).json({ success: true, message: 'Task created successfully', data: newTask });
+      res.status(201).json({ success: true, message: 'Task created successfully', data: formattedTask });
     } catch (error) {
+      console.error('Error creating task:', error);
+      
+      if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        return res.status(400).json({ success: false, message: 'Validation error', errors: validationErrors });
+      }
+      
       res.status(500).json({
         success: false,
         message: 'Error creating task',
@@ -128,31 +186,61 @@ const taskController = {
       const { id } = req.params;
       const updates = req.body || {};
       const { valid, errors } = validateTaskPayload(updates, true);
+      
       if (!valid) {
         return res.status(400).json({ success: false, message: 'Invalid task payload', errors });
       }
 
-      let updatedTask = null;
-      await datastore.update('tasks', (tasks) => {
-        const arr = Array.isArray(tasks) ? tasks : [];
-        const idx = arr.findIndex(t => t.id === id);
-        if (idx === -1) return arr;
-        const existing = arr[idx];
-        const next = { ...existing, ...updates };
-        if (updates.title) next.title = updates.title.trim();
-        if (updates.dueDate) next.dueDate = new Date(updates.dueDate).toISOString();
-        next.updatedAt = new Date().toISOString();
-        arr[idx] = next;
-        updatedTask = next;
-        return arr;
-      });
+      // Prepare update data
+      const updateData = {};
+      if (updates.title) updateData.title = updates.title.trim();
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.subject !== undefined) updateData.subject = updates.subject;
+      if (updates.dueDate !== undefined) updateData.dueDate = updates.dueDate ? new Date(updates.dueDate) : null;
+      if (updates.priority) updateData.priority = updates.priority;
+      if (updates.urgency !== undefined) updateData.urgency = updates.urgency;
+      if (updates.difficulty !== undefined) updateData.difficulty = updates.difficulty;
+      if (updates.preparation !== undefined) updateData.preparation = updates.preparation;
+      if (updates.revision !== undefined) updateData.revision = updates.revision;
+      if (updates.status) updateData.status = updates.status;
+      if (updates.estimatedDuration !== undefined) updateData.estimatedDuration = updates.estimatedDuration;
+      if (updates.actualDuration !== undefined) updateData.actualDuration = updates.actualDuration;
+      if (updates.tags !== undefined) updateData.tags = updates.tags;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
 
-      if (!updatedTask) {
+      const task = await Task.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      ).lean();
+
+      if (!task) {
         return res.status(404).json({ success: false, message: 'Task not found' });
       }
 
-      res.json({ success: true, message: 'Task updated successfully', data: updatedTask });
+      const formattedTask = {
+        id: task._id.toString(),
+        ...task,
+        _id: undefined,
+        __v: undefined
+      };
+
+      res.json({ success: true, message: 'Task updated successfully', data: formattedTask });
     } catch (error) {
+      console.error('Error updating task:', error);
+      
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid task ID format' });
+      }
+      
+      if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        return res.status(400).json({ success: false, message: 'Validation error', errors: validationErrors });
+      }
+      
       res.status(500).json({
         success: false,
         message: 'Error updating task',
@@ -164,21 +252,20 @@ const taskController = {
   deleteTask: async (req, res) => {
     try {
       const { id } = req.params;
-      let existed = false;
-      await datastore.update('tasks', (tasks) => {
-        const arr = Array.isArray(tasks) ? tasks : [];
-        const before = arr.length;
-        const filtered = arr.filter(t => t.id !== id);
-        existed = before !== filtered.length;
-        return filtered;
-      });
+      const task = await Task.findByIdAndDelete(id);
 
-      if (!existed) {
+      if (!task) {
         return res.status(404).json({ success: false, message: 'Task not found' });
       }
 
       res.json({ success: true, message: 'Task deleted successfully', data: { id } });
     } catch (error) {
+      console.error('Error deleting task:', error);
+      
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid task ID format' });
+      }
+      
       res.status(500).json({
         success: false,
         message: 'Error deleting task',

@@ -1,7 +1,7 @@
-const datastore = require('../datastore');
+const Timetable = require('../models/Timetable');
 
 function isValidTime(t) {
-  return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+  return typeof t === 'string' && /^([01]?\d|2[0-3]):[0-5]\d$/.test(t);
 }
 
 function validateTimetablePayload(payload) {
@@ -53,14 +53,43 @@ function validateTimetablePayload(payload) {
 const timetableController = {
   getTimetable: async (req, res) => {
     try {
-      const current = datastore.get('timetable');
-      const timetable = current || { version: 1, weekStart: new Date().toISOString(), days: {}, updatedAt: new Date().toISOString() };
+      // For now, we'll use a default userId. In production, this would come from auth middleware
+      const userId = req.query.userId || 'default';
+      
+      let timetable = await Timetable.findOne({ userId }).lean();
+      
+      if (!timetable) {
+        // Create a default timetable if it doesn't exist
+        timetable = {
+          version: 1,
+          weekStart: new Date().toISOString(),
+          days: {
+            monday: [],
+            tuesday: [],
+            wednesday: [],
+            thursday: [],
+            friday: [],
+            saturday: [],
+            sunday: []
+          },
+          updatedAt: new Date().toISOString()
+        };
+      } else {
+        // Format response - remove _id and __v
+        timetable = {
+          ...timetable,
+          _id: undefined,
+          __v: undefined
+        };
+      }
+      
       res.json({
         success: true,
         message: 'Timetable retrieved successfully',
         data: timetable
       });
     } catch (error) {
+      console.error('Error retrieving timetable:', error);
       res.status(500).json({ success: false, message: 'Error retrieving timetable', error: error.message });
     }
   },
@@ -69,37 +98,65 @@ const timetableController = {
     try {
       const payload = req.body || {};
       const { valid, errors } = validateTimetablePayload(payload);
+      
       if (!valid) {
         return res.status(400).json({ success: false, message: 'Invalid timetable payload', errors });
       }
 
-      let saved = null;
-      let conflict = false;
-
-      await datastore.update('timetable', (current) => {
-        const base = current || { version: 1, weekStart: new Date().toISOString(), days: {}, updatedAt: new Date().toISOString() };
-        const clientVersion = typeof payload.version === 'number' ? payload.version : null;
-        if (clientVersion != null && clientVersion !== base.version) {
-          conflict = true;
-          return base; // no change
-        }
-        const next = {
-          version: (base.version || 0) + 1,
-          weekStart: payload.weekStart || base.weekStart || new Date().toISOString(),
-          days: payload.days ? payload.days : (base.days || {}),
-          updatedAt: new Date().toISOString()
-        };
-        saved = next;
-        return next;
-      });
-
-      if (conflict) {
-        const latest = datastore.get('timetable');
-        return res.status(409).json({ success: false, conflict: true, message: 'Version conflict', data: latest });
+      // For now, we'll use a default userId. In production, this would come from auth middleware
+      const userId = req.query.userId || payload.userId || 'default';
+      
+      // Check for version conflict if client sends version
+      const currentTimetable = await Timetable.findOne({ userId });
+      const clientVersion = typeof payload.version === 'number' ? payload.version : null;
+      
+      if (currentTimetable && clientVersion != null && clientVersion !== currentTimetable.version) {
+        return res.status(409).json({ 
+          success: false, 
+          conflict: true, 
+          message: 'Version conflict', 
+          data: currentTimetable.toObject() 
+        });
       }
 
-      res.json({ success: true, message: 'Timetable saved successfully', data: saved });
+      const updateData = {
+        weekStart: payload.weekStart || (currentTimetable ? currentTimetable.weekStart : new Date()),
+        days: payload.days || (currentTimetable ? currentTimetable.days : {
+          monday: [],
+          tuesday: [],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: []
+        }),
+        version: (currentTimetable ? currentTimetable.version : 0) + 1
+      };
+
+      const timetable = await Timetable.findOneAndUpdate(
+        { userId },
+        { $set: updateData },
+        { new: true, upsert: true, runValidators: true }
+      ).lean();
+
+      const formattedTimetable = {
+        ...timetable,
+        _id: undefined,
+        __v: undefined
+      };
+
+      res.json({ success: true, message: 'Timetable saved successfully', data: formattedTimetable });
     } catch (error) {
+      console.error('Error saving timetable:', error);
+      
+      if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        return res.status(400).json({ success: false, message: 'Validation error', errors: validationErrors });
+      }
+      
       res.status(500).json({ success: false, message: 'Error saving timetable', error: error.message });
     }
   }

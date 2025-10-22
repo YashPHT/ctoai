@@ -1,4 +1,4 @@
-const datastore = require('../datastore');
+const Task = require('../models/Task');
 
 function priorityValue(p) {
   switch ((p || '').toLowerCase()) {
@@ -48,6 +48,7 @@ const studyPlanController = {
         count: studyPlans.length
       });
     } catch (error) {
+      console.error('Error retrieving study plans:', error);
       res.status(500).json({
         success: false,
         message: 'Error retrieving study plans',
@@ -80,6 +81,7 @@ const studyPlanController = {
         }
       });
     } catch (error) {
+      console.error('Error retrieving study plan:', error);
       res.status(500).json({
         success: false,
         message: 'Error retrieving study plan',
@@ -103,6 +105,7 @@ const studyPlanController = {
         }
       });
     } catch (error) {
+      console.error('Error creating study plan:', error);
       res.status(500).json({
         success: false,
         message: 'Error creating study plan',
@@ -126,6 +129,7 @@ const studyPlanController = {
         }
       });
     } catch (error) {
+      console.error('Error updating study plan:', error);
       res.status(500).json({
         success: false,
         message: 'Error updating study plan',
@@ -144,6 +148,7 @@ const studyPlanController = {
         data: { id }
       });
     } catch (error) {
+      console.error('Error deleting study plan:', error);
       res.status(500).json({
         success: false,
         message: 'Error deleting study plan',
@@ -170,6 +175,7 @@ const studyPlanController = {
         }
       });
     } catch (error) {
+      console.error('Error adding study session:', error);
       res.status(500).json({
         success: false,
         message: 'Error adding study session',
@@ -180,18 +186,18 @@ const studyPlanController = {
 
   computeStudyPlan: async (req, res) => {
     try {
-      const tasks = (datastore.get('tasks') || []).filter(t => t.status !== 'completed');
+      const tasks = await Task.find({ status: { $ne: 'completed' } }).lean();
       const dailyCapacityHours = Math.max(1, parseFloat(req.query.dailyHours || '4'));
       const windowDays = Math.max(1, parseInt(req.query.windowDays || '7', 10));
 
       const scored = tasks.map(t => {
-        const estHours = (typeof t.estimatedDuration === 'number' ? t.estimatedDuration : 60) / 60; // default 1 hour
-        const pScore = priorityValue(t.priority) / 4; // 0..1
+        const estHours = (typeof t.estimatedDuration === 'number' ? t.estimatedDuration : 60) / 60;
+        const pScore = priorityValue(t.priority) / 4;
         const d = daysUntil(t.dueDate);
-        const uScore = isFinite(d) ? 1 / (Math.max(d, 0) + 1) : 0.2; // 0..1
+        const uScore = isFinite(d) ? 1 / (Math.max(d, 0) + 1) : 0.2;
         const score = 0.6 * pScore + 0.4 * uScore;
         return {
-          id: t.id,
+          id: t._id.toString(),
           title: t.title,
           subject: t.subject || null,
           dueDate: t.dueDate || null,
@@ -232,6 +238,7 @@ const studyPlanController = {
         }
       });
     } catch (error) {
+      console.error('Error generating study plan:', error);
       res.status(500).json({ success: false, message: 'Error generating study plan', error: error.message });
     }
   }

@@ -20,6 +20,9 @@ const messageSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    payload: {
+      type: mongoose.Schema.Types.Mixed
+    },
     entities: {
       type: Map,
       of: mongoose.Schema.Types.Mixed
@@ -30,20 +33,24 @@ const messageSchema = new mongoose.Schema({
       max: 1
     }
   }
-});
+}, { _id: false });
 
 const chatHistorySchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    index: true
   },
   sessionId: {
     type: String,
     required: true,
+    unique: true,
     index: true
   },
-  messages: [messageSchema],
+  messages: {
+    type: [messageSchema],
+    default: []
+  },
   context: {
     currentStep: {
       type: String,
@@ -61,7 +68,8 @@ const chatHistorySchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['active', 'completed', 'archived'],
-    default: 'active'
+    default: 'active',
+    index: true
   },
   summary: {
     type: String,
@@ -73,16 +81,20 @@ const chatHistorySchema = new mongoose.Schema({
   }],
   lastMessageAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    index: true
   }
 }, {
   timestamps: true
 });
 
+// Compound indexes
 chatHistorySchema.index({ userId: 1, sessionId: 1 });
 chatHistorySchema.index({ userId: 1, status: 1 });
 chatHistorySchema.index({ userId: 1, lastMessageAt: -1 });
+chatHistorySchema.index({ sessionId: 1, status: 1 });
 
+// Method to add a message
 chatHistorySchema.methods.addMessage = function(role, content, metadata = {}) {
   this.messages.push({
     role,
@@ -94,6 +106,7 @@ chatHistorySchema.methods.addMessage = function(role, content, metadata = {}) {
   return this.messages[this.messages.length - 1];
 };
 
+// Method to get recent messages
 chatHistorySchema.methods.getRecentMessages = function(limit = 10) {
   return this.messages.slice(-limit);
 };

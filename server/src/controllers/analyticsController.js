@@ -1,4 +1,6 @@
-const datastore = require('../datastore');
+const Task = require('../models/Task');
+const Subject = require('../models/Subject');
+const Event = require('../models/Event');
 
 function toNumber(val, def = 0) {
   return typeof val === 'number' && !isNaN(val) ? val : def;
@@ -21,9 +23,9 @@ const analyticsController = {
   getAnalytics: async (req, res) => {
     try {
       const now = new Date();
-      const tasks = datastore.get('tasks') || [];
-      const subjects = datastore.get('subjects') || [];
-      const events = datastore.get('events') || [];
+      const tasks = await Task.find().lean();
+      const subjects = await Subject.find().lean();
+      const events = await Event.find().lean();
 
       const totals = {
         totalTasks: tasks.length,
@@ -48,7 +50,7 @@ const analyticsController = {
       const upcomingTasks = tasks
         .filter(t => t.dueDate && !isNaN(Date.parse(t.dueDate)))
         .map(t => ({
-          id: t.id,
+          id: t._id.toString(),
           title: t.title,
           subject: t.subject || null,
           dueDate: t.dueDate,
@@ -145,6 +147,7 @@ const analyticsController = {
 
       res.json(response);
     } catch (error) {
+      console.error('Error computing analytics:', error);
       res.status(500).json({ success: false, message: 'Error computing analytics', error: error.message });
     }
   }

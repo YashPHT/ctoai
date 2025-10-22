@@ -6,11 +6,18 @@ Node.js/Express backend server with MongoDB for the Assessli Smart Academic Ment
 
 - RESTful API architecture
 - MongoDB integration with Mongoose ODM
+- Comprehensive data models with validation
+- Automatic priority score calculation for tasks
+- Connection pooling and retry logic
+- Graceful shutdown handling
+- Database indexes for performance optimization
 - CORS enabled for frontend integration
 - Environment-based configuration
 - Comprehensive error handling
 - Request logging middleware
+- Rate limiting
 - Modular route structure
+- Database seeding script for demo data
 
 ## Tech Stack
 
@@ -123,6 +130,21 @@ server/
 
 ## Running the Server
 
+### Seed the Database (First Time Setup)
+
+After setting up MongoDB, seed the database with demo data:
+
+```bash
+npm run seed
+```
+
+This will:
+- Clear existing data
+- Create sample subjects (Mathematics, Biology, Chemistry, Physics, English, History)
+- Create sample tasks with various priorities and statuses
+- Create sample events and assessments
+- Set up a default weekly timetable
+
 ### Development Mode (with auto-reload)
 ```bash
 npm run dev
@@ -142,7 +164,7 @@ The server will start on the configured port (default: 5000).
 - `GET /api/health` - Server health status
 
 ### Tasks
-- `GET /api/tasks` - Get all tasks
+- `GET /api/tasks` - Get all tasks (supports filtering by status, subject, priority)
 - `GET /api/tasks/:id` - Get task by ID
 - `POST /api/tasks` - Create new task
 - `PUT /api/tasks/:id` - Update task
@@ -153,8 +175,39 @@ The server will start on the configured port (default: 5000).
 - `priority`: Low, Medium, High, Urgent
 - `urgency`: low, medium, high, critical
 - `difficulty`: easy, moderate, challenging, difficult
+- `preparation`: none, minimal, moderate, extensive
+- `revision`: number (revision count)
+- `priorityScore`: computed priority score (0-100)
 - `status`: pending, in-progress, completed, overdue, cancelled
 - `estimatedDuration`, `actualDuration`, `tags`, `notes`
+
+### Subjects
+- `GET /api/subjects` - Get all subjects
+- `GET /api/subjects/:id` - Get subject by ID
+- `POST /api/subjects` - Create new subject
+- `PUT /api/subjects/:id` - Update subject
+- `DELETE /api/subjects/:id` - Delete subject
+
+### Events
+- `GET /api/events` - Get all events (supports filtering by status, subject, type, date range)
+- `GET /api/events/:id` - Get event by ID
+- `POST /api/events` - Create new event
+- `PUT /api/events/:id` - Update event
+- `DELETE /api/events/:id` - Delete event
+
+### Timetable
+- `GET /api/timetable` - Get weekly timetable
+- `PUT /api/timetable` - Update/create timetable
+
+### Assessments
+- `GET /api/assessments` - Get all assessments (supports filtering)
+- `GET /api/assessments/:id` - Get assessment by ID
+- `POST /api/assessments` - Create new assessment
+- `PUT /api/assessments/:id` - Update assessment
+- `DELETE /api/assessments/:id` - Delete assessment
+
+### Analytics
+- `GET /api/analytics` - Get comprehensive analytics (task statistics, subject breakdown, trends)
 
 ### Chat
 - `POST /api/chat` - Send chat message
@@ -185,8 +238,33 @@ The server will start on the configured port (default: 5000).
 ### Task Model
 - Comprehensive task management
 - Multiple priority and difficulty levels
+- Preparation and revision tracking
+- Automatic priority score calculation (0-100)
 - Status tracking with timestamps
 - Support for tags and notes
+- Indexed fields for optimized queries
+
+### Subject Model
+- Subject information with color coding
+- Hours per week tracking
+- Active/inactive status
+
+### Event Model
+- Calendar event management
+- Support for exams, quizzes, labs, etc.
+- Recurring event support
+- Location and timing information
+
+### Timetable Model
+- Weekly schedule management
+- Time blocks per day
+- Version control for conflict detection
+
+### Assessment Model
+- Assessment tracking (exams, quizzes, assignments)
+- Score history and grade tracking
+- Resource links
+- Weight-based grading support
 
 ### StudyPlan Model
 - Multi-subject study planning
@@ -277,7 +355,14 @@ The current implementation provides:
 | `PORT` | Server port | 5000 |
 | `NODE_ENV` | Environment mode | development |
 | `MONGODB_URI` | MongoDB connection string | mongodb://localhost:27017/assessli |
+| `MONGODB_POOL_SIZE` | Maximum connection pool size | 10 |
+| `MONGODB_MIN_POOL_SIZE` | Minimum connection pool size | 2 |
+| `MONGODB_SERVER_TIMEOUT` | Server selection timeout (ms) | 5000 |
+| `MONGODB_SOCKET_TIMEOUT` | Socket timeout (ms) | 45000 |
 | `CORS_ORIGIN` | Allowed CORS origin | http://localhost:8000 |
+| `RATE_LIMIT_WINDOW_MS` | Rate limit window (ms) | 900000 |
+| `RATE_LIMIT_MAX` | Max requests per window | 100 |
+| `GEMINI_API_KEY` | Gemini API key for AI features | - |
 
 ## Troubleshooting
 

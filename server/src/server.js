@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const datastore = require('./datastore');
+const { connectDB, setupGracefulShutdown } = require('./config/database');
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -68,15 +68,18 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  const mongoose = require('mongoose');
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  
   res.json({
     success: true,
     message: 'Server is running',
     timestamp: new Date(),
     uptime: process.uptime(),
-    datastore: {
-      dataDir: datastore.state.dataDir,
-      collections: Array.from(datastore.state.cache.keys())
+    database: {
+      status: dbStatus,
+      name: mongoose.connection.name || 'not connected'
     }
   });
 });
@@ -103,14 +106,20 @@ app.use(errorHandler);
 
 async function start() {
   try {
-    await datastore.init({ dataDir: process.env.DATA_DIR });
-    await datastore.refreshAll();
+    // Connect to MongoDB
+    await connectDB();
+    console.log('✓ MongoDB connection established');
+    
+    // Setup graceful shutdown handlers
+    setupGracefulShutdown();
+    console.log('✓ Graceful shutdown handlers configured');
 
     app.listen(PORT, () => {
+      console.log('='.repeat(50));
       console.log(`Server is running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Data directory: ${datastore.state.dataDir}`);
       console.log(`API endpoints available at http://localhost:${PORT}/api`);
+      console.log('='.repeat(50));
     });
   } catch (err) {
     console.error('Failed to start server', err);

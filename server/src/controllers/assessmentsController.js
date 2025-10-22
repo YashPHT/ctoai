@@ -1,5 +1,4 @@
-const crypto = require('crypto');
-const datastore = require('../datastore');
+const Assessment = require('../models/Assessment');
 
 function isISODate(val) {
   if (val == null) return false;
@@ -21,9 +20,6 @@ function validateAssessmentPayload(payload, isUpdate = false) {
   if (payload.date && !isISODate(payload.date)) {
     errors.push({ field: 'date', message: 'date must be a valid date string' });
   }
-  if (payload.status && !['upcoming', 'completed', 'overdue', 'unscheduled'].includes(payload.status)) {
-    errors.push({ field: 'status', message: 'Invalid status' });
-  }
   if (payload.scoreHistory && !Array.isArray(payload.scoreHistory)) {
     errors.push({ field: 'scoreHistory', message: 'scoreHistory must be an array of numbers' });
   }
@@ -36,47 +32,57 @@ function validateAssessmentPayload(payload, isUpdate = false) {
   return { valid: errors.length === 0, errors };
 }
 
-function computeStatus(a) {
-  const now = Date.now();
-  if (a.status === 'completed') return 'completed';
-  if (!a.date) return a.status || 'unscheduled';
-  const t = new Date(a.date).getTime();
-  if (isNaN(t)) return a.status || 'unscheduled';
-  return t >= now ? 'upcoming' : 'overdue';
+function toResponseFormat(doc) {
+  if (!doc) return null;
+  const obj = doc.toObject ? doc.toObject() : doc;
+  return {
+    id: obj._id.toString(),
+    ...obj,
+    _id: undefined,
+    __v: undefined
+  };
 }
 
 const assessmentsController = {
   getAssessments: async (req, res) => {
     try {
       const { subject, from, to, status } = req.query || {};
-      let assessments = datastore.get('assessments') || [];
+      const query = {};
 
       // Filtering
       if (subject) {
-        assessments = assessments.filter(a => (a.subject || '').toLowerCase() === String(subject).toLowerCase());
-      }
-      if (from) {
-        const fromTime = new Date(from).getTime();
-        if (!isNaN(fromTime)) assessments = assessments.filter(a => a.date && new Date(a.date).getTime() >= fromTime);
-      }
-      if (to) {
-        const toTime = new Date(to).getTime();
-        if (!isNaN(toTime)) assessments = assessments.filter(a => a.date && new Date(a.date).getTime() <= toTime);
+        query.subject = subject;
       }
       if (status) {
-        const st = String(status).toLowerCase();
-        assessments = assessments.filter(a => computeStatus(a) === st);
+        query.status = status;
+      }
+      if (from || to) {
+        query.date = {};
+        if (from) {
+          query.date.$gte = new Date(from);
+        }
+        if (to) {
+          query.date.$lte = new Date(to);
+        }
       }
 
-      // Sort by date ascending (nulls last)
-      assessments.sort((a, b) => {
-        const ta = a.date ? new Date(a.date).getTime() : Infinity;
-        const tb = b.date ? new Date(b.date).getTime() : Infinity;
-        return ta - tb;
-      });
+      const assessments = await Assessment.find(query).sort({ date: 1 }).lean();
+      
+      const formattedAssessments = assessments.map(a => ({
+        id: a._id.toString(),
+        ...a,
+        _id: undefined,
+        __v: undefined
+      }));
 
-      res.json({ success: true, message: 'Assessments retrieved successfully', data: assessments, count: assessments.length });
+      res.json({ 
+        success: true, 
+        message: 'Assessments retrieved successfully', 
+        data: formattedAssessments, 
+        count: formattedAssessments.length 
+      });
     } catch (error) {
+      console.error('Error retrieving assessments:', error);
       res.status(500).json({ success: false, message: 'Error retrieving assessments', error: error.message });
     }
   },
@@ -84,11 +90,27 @@ const assessmentsController = {
   getAssessmentById: async (req, res) => {
     try {
       const { id } = req.params;
-      const assessments = datastore.get('assessments') || [];
-      const found = assessments.find(a => a.id === id);
-      if (!found) return res.status(404).json({ success: false, message: 'Assessment not found' });
-      res.json({ success: true, message: 'Assessment retrieved successfully', data: found });
+      const assessment = await Assessment.findById(id).lean();
+      
+      if (!assessment) {
+        return res.status(404).json({ success: false, message: 'Assessment not found' });
+      }
+      
+      const formattedAssessment = {
+        id: assessment._id.toString(),
+        ...assessment,
+        _id: undefined,
+        __v: undefined
+      };
+      
+      res.json({ success: true, message: 'Assessment retrieved successfully', data: formattedAssessment });
     } catch (error) {
+      console.error('Error retrieving assessment:', error);
+      
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid assessment ID format' });
+      }
+      
       res.status(500).json({ success: false, message: 'Error retrieving assessment', error: error.message });
     }
   },
@@ -97,29 +119,40 @@ const assessmentsController = {
     try {
       const payload = req.body || {};
       const { valid, errors } = validateAssessmentPayload(payload, false);
-      if (!valid) return res.status(400).json({ success: false, message: 'Invalid assessment payload', errors });
+      
+      if (!valid) {
+        return res.status(400).json({ success: false, message: 'Invalid assessment payload', errors });
+      }
 
-      const nowIso = new Date().toISOString();
-      const newAssessment = {
-        id: `a_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}`,
+      const assessmentData = {
         title: payload.title.trim(),
-        subject: payload.subject || null,
-        date: payload.date ? new Date(payload.date).toISOString() : null,
-        status: payload.status || undefined,
-        weight: typeof payload.weight === 'number' ? payload.weight : null,
-        scoreHistory: Array.isArray(payload.scoreHistory) ? payload.scoreHistory : [],
-        resources: Array.isArray(payload.resources) ? payload.resources : [],
-        createdAt: nowIso,
-        updatedAt: nowIso
+        subject: payload.subject || '',
+        date: payload.date ? new Date(payload.date) : new Date(),
+        type: payload.type || 'exam',
+        status: payload.status || 'upcoming',
+        weight: payload.weight || 0,
+        scoreHistory: payload.scoreHistory || [],
+        resources: payload.resources || [],
+        notes: payload.notes || ''
       };
 
-      await datastore.update('assessments', (assessments) => {
-        const arr = Array.isArray(assessments) ? assessments : [];
-        return [...arr, newAssessment];
-      });
+      const assessment = new Assessment(assessmentData);
+      await assessment.save();
+      
+      const formattedAssessment = toResponseFormat(assessment);
 
-      res.status(201).json({ success: true, message: 'Assessment created successfully', data: newAssessment });
+      res.status(201).json({ success: true, message: 'Assessment created successfully', data: formattedAssessment });
     } catch (error) {
+      console.error('Error creating assessment:', error);
+      
+      if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        return res.status(400).json({ success: false, message: 'Validation error', errors: validationErrors });
+      }
+      
       res.status(500).json({ success: false, message: 'Error creating assessment', error: error.message });
     }
   },
@@ -129,26 +162,55 @@ const assessmentsController = {
       const { id } = req.params;
       const updates = req.body || {};
       const { valid, errors } = validateAssessmentPayload(updates, true);
-      if (!valid) return res.status(400).json({ success: false, message: 'Invalid assessment payload', errors });
+      
+      if (!valid) {
+        return res.status(400).json({ success: false, message: 'Invalid assessment payload', errors });
+      }
 
-      let updated = null;
-      await datastore.update('assessments', (assessments) => {
-        const arr = Array.isArray(assessments) ? assessments : [];
-        const idx = arr.findIndex(a => a.id === id);
-        if (idx === -1) return arr;
-        const existing = arr[idx];
-        const next = { ...existing, ...updates };
-        if (updates.title) next.title = updates.title.trim();
-        if (updates.date) next.date = new Date(updates.date).toISOString();
-        next.updatedAt = new Date().toISOString();
-        arr[idx] = next;
-        updated = next;
-        return arr;
-      });
+      const updateData = {};
+      if (updates.title) updateData.title = updates.title.trim();
+      if (updates.subject !== undefined) updateData.subject = updates.subject;
+      if (updates.date !== undefined) updateData.date = new Date(updates.date);
+      if (updates.type !== undefined) updateData.type = updates.type;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.weight !== undefined) updateData.weight = updates.weight;
+      if (updates.scoreHistory !== undefined) updateData.scoreHistory = updates.scoreHistory;
+      if (updates.resources !== undefined) updateData.resources = updates.resources;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
 
-      if (!updated) return res.status(404).json({ success: false, message: 'Assessment not found' });
-      res.json({ success: true, message: 'Assessment updated successfully', data: updated });
+      const assessment = await Assessment.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      ).lean();
+
+      if (!assessment) {
+        return res.status(404).json({ success: false, message: 'Assessment not found' });
+      }
+
+      const formattedAssessment = {
+        id: assessment._id.toString(),
+        ...assessment,
+        _id: undefined,
+        __v: undefined
+      };
+
+      res.json({ success: true, message: 'Assessment updated successfully', data: formattedAssessment });
     } catch (error) {
+      console.error('Error updating assessment:', error);
+      
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid assessment ID format' });
+      }
+      
+      if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        return res.status(400).json({ success: false, message: 'Validation error', errors: validationErrors });
+      }
+      
       res.status(500).json({ success: false, message: 'Error updating assessment', error: error.message });
     }
   },
@@ -156,17 +218,20 @@ const assessmentsController = {
   deleteAssessment: async (req, res) => {
     try {
       const { id } = req.params;
-      let existed = false;
-      await datastore.update('assessments', (assessments) => {
-        const arr = Array.isArray(assessments) ? assessments : [];
-        const before = arr.length;
-        const filtered = arr.filter(a => a.id !== id);
-        existed = before !== filtered.length;
-        return filtered;
-      });
-      if (!existed) return res.status(404).json({ success: false, message: 'Assessment not found' });
+      const assessment = await Assessment.findByIdAndDelete(id);
+
+      if (!assessment) {
+        return res.status(404).json({ success: false, message: 'Assessment not found' });
+      }
+
       res.json({ success: true, message: 'Assessment deleted successfully', data: { id } });
     } catch (error) {
+      console.error('Error deleting assessment:', error);
+      
+      if (error.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid assessment ID format' });
+      }
+      
       res.status(500).json({ success: false, message: 'Error deleting assessment', error: error.message });
     }
   }

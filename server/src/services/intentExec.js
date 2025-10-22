@@ -1,5 +1,6 @@
-const crypto = require('crypto');
-const datastore = require('../datastore');
+const Task = require('../models/Task');
+const Subject = require('../models/Subject');
+const Event = require('../models/Event');
 
 const INTENTS = Object.freeze([
   'create_task',
@@ -93,24 +94,29 @@ async function executeIntent(intent, payload) {
       return createSubject(payload);
     case 'none':
     default:
-      return { resources: snapshotResources() };
+      return { resources: await snapshotResources() };
   }
 }
 
-function snapshotResources() {
-  const tasks = datastore.get('tasks') || [];
-  const subjects = datastore.get('subjects') || [];
-  const events = datastore.get('events') || [];
-  return { tasks, subjects, events };
+async function snapshotResources() {
+  const tasks = await Task.find().lean();
+  const subjects = await Subject.find().lean();
+  const events = await Event.find().lean();
+  
+  // Format responses with 'id' field for backward compatibility
+  return {
+    tasks: tasks.map(t => ({ ...t, id: t._id.toString(), _id: undefined, __v: undefined })),
+    subjects: subjects.map(s => ({ ...s, id: s._id.toString(), _id: undefined, __v: undefined })),
+    events: events.map(e => ({ ...e, id: e._id.toString(), _id: undefined, __v: undefined }))
+  };
 }
 
 async function createTask(payload) {
-  const newTask = {
-    id: `t_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}`,
+  const taskData = {
     title: payload.title.trim(),
     description: payload.description || '',
     subject: payload.subject || null,
-    dueDate: payload.dueDate ? new Date(payload.dueDate).toISOString() : null,
+    dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
     priority: payload.priority || 'Medium',
     urgency: payload.urgency || null,
     difficulty: payload.difficulty || null,
@@ -118,66 +124,95 @@ async function createTask(payload) {
     estimatedDuration: typeof payload.estimatedDuration === 'number' ? payload.estimatedDuration : null,
     actualDuration: null,
     tags: Array.isArray(payload.tags) ? payload.tags : [],
-    notes: payload.notes || '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    notes: payload.notes || ''
   };
 
-  await datastore.update('tasks', (tasks) => {
-    const arr = Array.isArray(tasks) ? tasks : [];
-    return [...arr, newTask];
-  });
-  return { resources: snapshotResources(), result: { task: newTask } };
+  const task = new Task(taskData);
+  await task.save();
+  
+  const formattedTask = {
+    ...task.toObject(),
+    id: task._id.toString(),
+    _id: undefined,
+    __v: undefined
+  };
+
+  return { resources: await snapshotResources(), result: { task: formattedTask } };
 }
 
 async function updateTask(payload) {
-  let updatedTask = null;
-  await datastore.update('tasks', (tasks) => {
-    const arr = Array.isArray(tasks) ? tasks : [];
-    const idx = arr.findIndex(t => t.id === payload.id);
-    if (idx === -1) return arr;
-    const updates = { ...payload };
-    delete updates.id;
-    const existing = arr[idx];
-    const next = { ...existing, ...updates };
-    if (updates.title) next.title = updates.title.trim();
-    if (updates.dueDate) next.dueDate = new Date(updates.dueDate).toISOString();
-    next.updatedAt = new Date().toISOString();
-    arr[idx] = next;
-    updatedTask = next;
-    return arr;
-  });
-  return { resources: snapshotResources(), result: { task: updatedTask } };
+  const updateData = {};
+  if (payload.title) updateData.title = payload.title.trim();
+  if (payload.description !== undefined) updateData.description = payload.description;
+  if (payload.subject !== undefined) updateData.subject = payload.subject;
+  if (payload.dueDate !== undefined) updateData.dueDate = payload.dueDate ? new Date(payload.dueDate) : null;
+  if (payload.priority) updateData.priority = payload.priority;
+  if (payload.urgency !== undefined) updateData.urgency = payload.urgency;
+  if (payload.difficulty !== undefined) updateData.difficulty = payload.difficulty;
+  if (payload.status) updateData.status = payload.status;
+  if (payload.estimatedDuration !== undefined) updateData.estimatedDuration = payload.estimatedDuration;
+  if (payload.actualDuration !== undefined) updateData.actualDuration = payload.actualDuration;
+  if (payload.tags !== undefined) updateData.tags = payload.tags;
+  if (payload.notes !== undefined) updateData.notes = payload.notes;
+
+  const task = await Task.findByIdAndUpdate(
+    payload.id,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+
+  if (!task) {
+    return { resources: await snapshotResources(), result: { task: null } };
+  }
+
+  const formattedTask = {
+    ...task.toObject(),
+    id: task._id.toString(),
+    _id: undefined,
+    __v: undefined
+  };
+
+  return { resources: await snapshotResources(), result: { task: formattedTask } };
 }
 
 async function completeTask(payload) {
-  let updatedTask = null;
-  await datastore.update('tasks', (tasks) => {
-    const arr = Array.isArray(tasks) ? tasks : [];
-    const idx = arr.findIndex(t => t.id === payload.id);
-    if (idx === -1) return arr;
-    const next = { ...arr[idx], status: 'completed', updatedAt: new Date().toISOString() };
-    arr[idx] = next;
-    updatedTask = next;
-    return arr;
-  });
-  return { resources: snapshotResources(), result: { task: updatedTask } };
+  const task = await Task.findByIdAndUpdate(
+    payload.id,
+    { $set: { status: 'completed', completedAt: new Date() } },
+    { new: true }
+  );
+
+  if (!task) {
+    return { resources: await snapshotResources(), result: { task: null } };
+  }
+
+  const formattedTask = {
+    ...task.toObject(),
+    id: task._id.toString(),
+    _id: undefined,
+    __v: undefined
+  };
+
+  return { resources: await snapshotResources(), result: { task: formattedTask } };
 }
 
 async function createSubject(payload) {
-  const newSubject = {
-    id: `s_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}`,
+  const subjectData = {
     name: payload.name.trim(),
-    color: payload.color || null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    color: payload.color || undefined
   };
 
-  await datastore.update('subjects', (subjects) => {
-    const arr = Array.isArray(subjects) ? subjects : [];
-    return [...arr, newSubject];
-  });
-  return { resources: snapshotResources(), result: { subject: newSubject } };
+  const subject = new Subject(subjectData);
+  await subject.save();
+  
+  const formattedSubject = {
+    ...subject.toObject(),
+    id: subject._id.toString(),
+    _id: undefined,
+    __v: undefined
+  };
+
+  return { resources: await snapshotResources(), result: { subject: formattedSubject } };
 }
 
 module.exports = {
