@@ -3,9 +3,8 @@ const Timetable = require('../models/Timetable');
 const timetableController = {
   getTimetable: async (req, res) => {
     try {
-      // Get the first (and typically only) timetable
-      // In a multi-user system, you'd filter by userId
-      let timetable = await Timetable.findOne({}).lean();
+      // Get timetable for current user
+      let timetable = await Timetable.findOne({ userId: req.user._id }).lean();
       
       // If no timetable exists, return a default structure
       if (!timetable) {
@@ -52,8 +51,8 @@ const timetableController = {
         });
       }
 
-      // Try to find existing timetable
-      let timetable = await Timetable.findOne({});
+      // Try to find existing timetable for current user
+      let timetable = await Timetable.findOne({ userId: req.user._id });
       
       if (timetable) {
         // Update existing timetable
@@ -67,7 +66,7 @@ const timetableController = {
           version: payload.version || 1,
           weekStart: payload.weekStart ? new Date(payload.weekStart) : new Date(),
           days: payload.days,
-          userId: payload.userId || null
+          userId: req.user._id
         });
         await timetable.save();
       }

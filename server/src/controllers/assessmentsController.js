@@ -4,7 +4,7 @@ const assessmentsController = {
   getAll: async (req, res) => {
     try {
       const { status, subject } = req.query;
-      const query = {};
+      const query = { userId: req.user._id };
       
       if (status) query.status = status;
       if (subject) query.subject = subject;
@@ -30,7 +30,7 @@ const assessmentsController = {
   getById: async (req, res) => {
     try {
       const { id } = req.params;
-      const assessment = await Assessment.findById(id).lean();
+      const assessment = await Assessment.findOne({ _id: id, userId: req.user._id }).lean();
       
       if (!assessment) {
         return res.status(404).json({
@@ -95,7 +95,7 @@ const assessmentsController = {
         scoreHistory: Array.isArray(payload.scoreHistory) ? payload.scoreHistory : [],
         resources: Array.isArray(payload.resources) ? payload.resources : [],
         description: payload.description || '',
-        userId: payload.userId || null
+        userId: req.user._id
       };
 
       const assessment = new Assessment(assessmentData);
@@ -143,8 +143,8 @@ const assessmentsController = {
         updates.date = new Date(updates.date);
       }
 
-      const assessment = await Assessment.findByIdAndUpdate(
-        id,
+      const assessment = await Assessment.findOneAndUpdate(
+        { _id: id, userId: req.user._id },
         { $set: updates },
         { new: true, runValidators: true }
       );
@@ -192,7 +192,7 @@ const assessmentsController = {
   remove: async (req, res) => {
     try {
       const { id } = req.params;
-      const assessment = await Assessment.findByIdAndDelete(id);
+      const assessment = await Assessment.findOneAndDelete({ _id: id, userId: req.user._id });
 
       if (!assessment) {
         return res.status(404).json({

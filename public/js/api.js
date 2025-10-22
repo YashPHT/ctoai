@@ -15,12 +15,24 @@
       onLoadingChange
     } = hooks || {};
 
+    // Add authorization header if token exists
+    if (window.authService && window.authService.getToken()) {
+      options.headers = options.headers || {};
+      options.headers['Authorization'] = `Bearer ${window.authService.getToken()}`;
+    }
+
     let attempt = 0;
     try { onLoadingChange && onLoadingChange(true); } catch (_) {}
 
     while (attempt <= retries) {
       try {
         const res = await fetch(fullUrl, options); // Use fullUrl
+        if (res.status === 401) {
+          if (window.authService) {
+            window.authService.logout();
+          }
+          throw new Error('Unauthorized - redirecting to login');
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {

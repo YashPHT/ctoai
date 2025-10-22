@@ -3,7 +3,7 @@ const Subject = require('../models/Subject');
 const subjectsController = {
   getAll: async (req, res) => {
     try {
-      const subjects = await Subject.find({}).sort({ name: 1 }).lean();
+      const subjects = await Subject.find({ userId: req.user._id }).sort({ name: 1 }).lean();
       res.json({ 
         success: true, 
         message: 'Subjects retrieved successfully', 
@@ -23,7 +23,7 @@ const subjectsController = {
   getById: async (req, res) => {
     try {
       const { id } = req.params;
-      const subject = await Subject.findById(id).lean();
+      const subject = await Subject.findOne({ _id: id, userId: req.user._id }).lean();
       
       if (!subject) {
         return res.status(404).json({ 
@@ -71,7 +71,7 @@ const subjectsController = {
         hoursSpent: payload.hoursSpent || 0,
         description: payload.description || '',
         teacher: payload.teacher || '',
-        userId: payload.userId || null
+        userId: req.user._id
       };
 
       const subject = new Subject(subjectData);
@@ -122,8 +122,8 @@ const subjectsController = {
         updates.name = updates.name.trim();
       }
 
-      const subject = await Subject.findByIdAndUpdate(
-        id,
+      const subject = await Subject.findOneAndUpdate(
+        { _id: id, userId: req.user._id },
         { $set: updates },
         { new: true, runValidators: true }
       );
@@ -178,7 +178,7 @@ const subjectsController = {
   remove: async (req, res) => {
     try {
       const { id } = req.params;
-      const subject = await Subject.findByIdAndDelete(id);
+      const subject = await Subject.findOneAndDelete({ _id: id, userId: req.user._id });
 
       if (!subject) {
         return res.status(404).json({ 

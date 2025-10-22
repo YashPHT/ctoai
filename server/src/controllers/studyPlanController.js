@@ -22,7 +22,7 @@ function daysUntil(dateStr) {
 const studyPlanController = {
   getAllStudyPlans: async (req, res) => {
     try {
-      const plans = await StudyPlan.find({}).sort({ createdAt: -1 }).lean();
+      const plans = await StudyPlan.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean();
 
       res.json({
         success: true,
@@ -43,7 +43,7 @@ const studyPlanController = {
   getStudyPlanById: async (req, res) => {
     try {
       const { id } = req.params;
-      const plan = await StudyPlan.findById(id).lean();
+      const plan = await StudyPlan.findOne({ _id: id, userId: req.user._id }).lean();
 
       if (!plan) {
         return res.status(404).json({
@@ -76,7 +76,7 @@ const studyPlanController = {
 
   createStudyPlan: async (req, res) => {
     try {
-      const studyPlanData = req.body;
+      const studyPlanData = { ...req.body, userId: req.user._id };
 
       const plan = new StudyPlan(studyPlanData);
       await plan.save();
@@ -115,8 +115,8 @@ const studyPlanController = {
       delete updates._id;
       delete updates.createdAt;
 
-      const plan = await StudyPlan.findByIdAndUpdate(
-        id,
+      const plan = await StudyPlan.findOneAndUpdate(
+        { _id: id, userId: req.user._id },
         { $set: updates },
         { new: true, runValidators: true }
       );
@@ -164,7 +164,7 @@ const studyPlanController = {
   deleteStudyPlan: async (req, res) => {
     try {
       const { id } = req.params;
-      const plan = await StudyPlan.findByIdAndDelete(id);
+      const plan = await StudyPlan.findOneAndDelete({ _id: id, userId: req.user._id });
 
       if (!plan) {
         return res.status(404).json({
@@ -224,8 +224,8 @@ const studyPlanController = {
 
   computeStudyPlan: async (req, res) => {
     try {
-      // Get incomplete tasks from MongoDB
-      const tasks = await Task.find({ status: { $ne: 'completed' } }).lean();
+      // Get incomplete tasks from MongoDB for current user
+      const tasks = await Task.find({ userId: req.user._id, status: { $ne: 'completed' } }).lean();
       
       const dailyCapacityHours = Math.max(1, parseFloat(req.query.dailyHours || '4'));
       const windowDays = Math.max(1, parseInt(req.query.windowDays || '7', 10));

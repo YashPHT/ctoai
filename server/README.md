@@ -4,6 +4,12 @@ Node.js/Express backend server with MongoDB for the Assessli Smart Academic Ment
 
 ## Features
 
+- **Authentication & Security**:
+  - JWT-based authentication system
+  - Bcrypt password hashing
+  - Rate limiting on auth endpoints (brute force protection)
+  - User data isolation
+  - Protected API routes
 - RESTful API architecture with full CRUD operations
 - MongoDB integration with Mongoose ODM
 - Connection pooling and retry logic
@@ -14,7 +20,7 @@ Node.js/Express backend server with MongoDB for the Assessli Smart Academic Ment
 - Comprehensive error handling
 - Request logging middleware
 - Graceful shutdown handling
-- Database seeding scripts
+- Database seeding and migration scripts
 - Health check endpoint
 
 ## Tech Stack
@@ -114,8 +120,17 @@ server/
    # CORS Configuration
    CORS_ORIGIN=http://localhost:8080
    
+   # JWT Configuration (IMPORTANT: Use a secure key in production)
+   JWT_SECRET=your-super-secret-jwt-key-change-in-production
+   JWT_EXPIRE=30d
+   
    # Gemini API (optional for chat features)
    GEMINI_API_KEY=your_api_key_here
+   ```
+   
+   **Security Note**: The `JWT_SECRET` should be a long, random string in production. You can generate one with:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
    ```
 
 ### MongoDB Setup
@@ -156,7 +171,24 @@ server/
    MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/assessli?retryWrites=true&w=majority
    ```
 
-### Database Seeding
+### Database Setup
+
+#### Option 1: Migration from JSON (if you have existing data)
+
+If you have existing JSON data files, migrate them to MongoDB with a default user:
+
+```bash
+npm run migrate
+```
+
+This will:
+- Create a default admin user (email: admin@assessli.com, password: admin123)
+- Migrate all existing data from JSON files to MongoDB
+- Associate all data with the default user
+
+**Important**: Change the default password immediately after first login!
+
+#### Option 2: Seed with Demo Data
 
 Populate the database with demo data:
 
@@ -188,11 +220,36 @@ The server will start on the configured port (default: 5000).
 
 ## API Endpoints
 
-### Health Check
+### Authentication (Public)
+- `POST /api/auth/register` - Register a new user
+  ```json
+  {
+    "username": "johndoe",
+    "email": "john@example.com",
+    "password": "securepassword",
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+  ```
+- `POST /api/auth/login` - Login and receive JWT token
+  ```json
+  {
+    "email": "john@example.com",
+    "password": "securepassword"
+  }
+  ```
+- `GET /api/auth/me` - Get current user profile (requires authentication)
+
+**Authentication**: All endpoints below require a JWT token in the Authorization header:
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Health Check (Public)
 - `GET /` - API information and available endpoints
 - `GET /api/health` - Server health status and MongoDB connection info
 
-### Tasks
+### Tasks (Protected)
 - `GET /api/tasks` - Get all tasks (supports filtering by status, subject, completed)
 - `GET /api/tasks/:id` - Get task by ID
 - `POST /api/tasks` - Create new task

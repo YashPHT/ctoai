@@ -6,6 +6,7 @@ const database = require('./config/database');
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler');
 
+const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const studyPlanRoutes = require('./routes/studyPlanRoutes');
@@ -16,6 +17,7 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const assessmentsRoutes = require('./routes/assessmentsRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const auth = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,6 +56,7 @@ app.get('/', (req, res) => {
     message: 'Assessli Smart Academic Mentor API',
     version: '1.0.0',
     endpoints: {
+      auth: '/api/auth',
       tasks: '/api/tasks',
       subjects: '/api/subjects',
       events: '/api/events',
@@ -85,16 +88,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.use('/api/tasks', taskRoutes);
-app.use('/api/subjects', subjectRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/study-plan', studyPlanComputeRoutes);
-app.use('/api/study-plans', studyPlanRoutes);
-app.use('/api/motivation', motivationRoutes);
-app.use('/api/timetable', timetableRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/assessments', assessmentsRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/tasks', auth, taskRoutes);
+app.use('/api/subjects', auth, subjectRoutes);
+app.use('/api/events', auth, eventRoutes);
+app.use('/api/chat', auth, chatRoutes);
+app.use('/api/study-plan', auth, studyPlanComputeRoutes);
+app.use('/api/study-plans', auth, studyPlanRoutes);
+app.use('/api/motivation', auth, motivationRoutes);
+app.use('/api/timetable', auth, timetableRoutes);
+app.use('/api/analytics', auth, analyticsRoutes);
+app.use('/api/assessments', auth, assessmentsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

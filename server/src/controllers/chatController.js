@@ -20,7 +20,7 @@ function checkRateLimit(key, limit = 20, windowMs = 60_000) {
 const chatController = {
   sendMessage: async (req, res) => {
     try {
-      const userId = (req.body && req.body.userId) || 'anonymous';
+      const userId = req.user._id;
       const userMessage = (req.body && req.body.message) ? String(req.body.message) : '';
       let { sessionId } = req.body || {};
 
@@ -34,13 +34,13 @@ const chatController = {
         return res.status(429).json({ success: false, message: 'Too many requests. Please slow down.' });
       }
 
-      // Ensure session exists
-      let session = sessionId ? await ChatHistory.findOne({ sessionId }) : null;
+      // Ensure session exists for current user
+      let session = sessionId ? await ChatHistory.findOne({ sessionId, userId }) : null;
       if (!session) {
         sessionId = `session_${Date.now()}`;
         session = new ChatHistory({
           sessionId,
-          userId: userId !== 'anonymous' ? userId : null,
+          userId,
           messages: [],
           status: 'active'
         });
@@ -82,10 +82,10 @@ const chatController = {
         execResult = await executeIntent(parsed.intent, parsed.payload || {});
       }
       
-      // Fetch current resources from MongoDB
-      const tasks = await Task.find({}).lean();
-      const subjects = await Subject.find({}).lean();
-      const events = await Event.find({}).lean();
+      // Fetch current resources from MongoDB for current user
+      const tasks = await Task.find({ userId }).lean();
+      const subjects = await Subject.find({ userId }).lean();
+      const events = await Event.find({ userId }).lean();
       const resources = execResult.resources || { tasks, subjects, events };
 
       // Store assistant message
@@ -119,7 +119,7 @@ const chatController = {
   getChatHistory: async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const session = await ChatHistory.findOne({ sessionId }).lean();
+      const session = await ChatHistory.findOne({ sessionId, userId: req.user._id }).lean();
       
       if (!session) {
         return res.status(404).json({ success: false, message: 'Session not found' });
@@ -135,7 +135,7 @@ const chatController = {
   createChatSession: async (req, res) => {
     try {
       const sessionId = `session_${Date.now()}`;
-      const userId = (req.body && req.body.userId) || null;
+      const userId = req.user._id;
       
       const session = new ChatHistory({
         sessionId,
@@ -163,7 +163,7 @@ const chatController = {
   deleteChatHistory: async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const session = await ChatHistory.findOneAndDelete({ sessionId });
+      const session = await ChatHistory.findOneAndDelete({ sessionId, userId: req.user._id });
       
       if (!session) {
         return res.status(404).json({ success: false, message: 'Session not found' });

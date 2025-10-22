@@ -29,10 +29,10 @@ const analyticsController = {
     try {
       const now = new Date();
       
-      // Fetch all tasks, subjects, and events from MongoDB
-      const tasks = await Task.find({}).lean();
-      const subjects = await Subject.find({}).lean();
-      const events = await Event.find({}).lean();
+      // Fetch all tasks, subjects, and events from MongoDB for current user
+      const tasks = await Task.find({ userId: req.user._id }).lean();
+      const subjects = await Subject.find({ userId: req.user._id }).lean();
+      const events = await Event.find({ userId: req.user._id }).lean();
 
       // Calculate totals
       const totals = {

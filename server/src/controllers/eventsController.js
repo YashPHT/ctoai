@@ -4,7 +4,7 @@ const eventsController = {
   getAll: async (req, res) => {
     try {
       const { type, subject, upcoming } = req.query;
-      const query = {};
+      const query = { userId: req.user._id };
       
       if (type) query.type = type;
       if (subject) query.subject = subject;
@@ -33,7 +33,7 @@ const eventsController = {
   getById: async (req, res) => {
     try {
       const { id } = req.params;
-      const event = await Event.findById(id).lean();
+      const event = await Event.findOne({ _id: id, userId: req.user._id }).lean();
       
       if (!event) {
         return res.status(404).json({
@@ -91,7 +91,7 @@ const eventsController = {
         description: payload.description || '',
         duration: payload.duration || null,
         completed: payload.completed || false,
-        userId: payload.userId || null
+        userId: req.user._id
       };
 
       const event = new Event(eventData);
@@ -139,8 +139,8 @@ const eventsController = {
         updates.date = new Date(updates.date);
       }
 
-      const event = await Event.findByIdAndUpdate(
-        id,
+      const event = await Event.findOneAndUpdate(
+        { _id: id, userId: req.user._id },
         { $set: updates },
         { new: true, runValidators: true }
       );
@@ -188,7 +188,7 @@ const eventsController = {
   remove: async (req, res) => {
     try {
       const { id } = req.params;
-      const event = await Event.findByIdAndDelete(id);
+      const event = await Event.findOneAndDelete({ _id: id, userId: req.user._id });
 
       if (!event) {
         return res.status(404).json({
