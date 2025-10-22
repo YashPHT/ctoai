@@ -1,11 +1,5 @@
 const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '30d'
-  });
-};
+const { signAuthToken } = require('../utils/token');
 
 const authController = {
   register: async (req, res) => {
@@ -33,10 +27,11 @@ const authController = {
         email,
         password,
         firstName,
-        lastName
+        lastName,
+        authProvider: 'local'
       });
 
-      const token = generateToken(user._id);
+      const token = signAuthToken({ id: user._id });
 
       res.status(201).json({
         success: true,
@@ -48,6 +43,8 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
+          authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
           token
         }
       });
@@ -94,6 +91,13 @@ const authController = {
         });
       }
 
+      if (!user.password) {
+        return res.status(400).json({
+          success: false,
+          message: 'This account is linked to Google. Please sign in with Google.'
+        });
+      }
+
       const isPasswordMatch = await user.matchPassword(password);
 
       if (!isPasswordMatch) {
@@ -103,7 +107,7 @@ const authController = {
         });
       }
 
-      const token = generateToken(user._id);
+      const token = signAuthToken({ id: user._id });
 
       res.json({
         success: true,
@@ -115,6 +119,8 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
+          authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
           token
         }
       });

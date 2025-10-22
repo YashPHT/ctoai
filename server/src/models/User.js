@@ -20,9 +20,36 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: [
+      function passwordRequired() {
+        return !this.googleId;
+      },
+      'Password is required'
+    ],
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
+  },
+  googleId: {
+    type: String,
+    sparse: true,
+    unique: true,
+    trim: true
+  },
+  profilePicture: {
+    type: String,
+    trim: true,
+    validate: {
+      validator: function(url) {
+        if (!url) return true;
+        return /^(https?:\/\/|data:image)/.test(url);
+      },
+      message: 'Profile picture must be a valid URL'
+    }
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google', 'both'],
+    default: 'local'
   },
   firstName: {
     type: String,
@@ -68,6 +95,7 @@ const userSchema = new mongoose.Schema({
 // Indexes
 userSchema.index({ email: 1 });
 userSchema.index({ username: 1 });
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
@@ -83,10 +111,10 @@ userSchema.set('toObject', { virtuals: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
-  
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
@@ -94,6 +122,9 @@ userSchema.pre('save', async function(next) {
 
 // Method to compare password
 userSchema.methods.matchPassword = async function(enteredPassword) {
+  if (!this.password) {
+    return false;
+  }
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

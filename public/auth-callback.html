@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing you in&hellip;</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-gradient-start: #141e30;
+      --bg-gradient-end: #243b55;
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.75);
+      --accent: #5c6cff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+      font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text-primary);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .status-card {
+      width: min(420px, 100%);
+      padding: 48px 32px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .spinner {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--accent);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="status-card" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <h1>Completing your sign-in&hellip;</h1>
+    <p id="statusMessage">Please wait a moment while we secure your account.</p>
+    <p class="hint">You can close this window once the process is complete.</p>
+  </div>
+
+  <script src="/public/js/auth.js"></script>
+  <script>
+    (async function handleOAuthCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const error = params.get('error');
+      const message = params.get('message');
+      const redirectTarget = params.get('redirect') || '/index.html';
+      const provider = params.get('provider') || 'google';
+      const metadata = {
+        provider,
+        isNewUser: params.get('isNewUser') === '1',
+        linked: params.get('linked') === '1',
+        redirect: redirectTarget
+      };
+      const statusMessageEl = document.getElementById('statusMessage');
+      const targetOrigin = window.location.origin;
+
+      const postToOpener = (payload) => {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(payload, targetOrigin);
+        }
+      };
+
+      if (error) {
+        const friendly = decodeURIComponent(message || error);
+        statusMessageEl.textContent = friendly || 'We could not complete the Google sign-in process.';
+        postToOpener({ type: 'OAUTH_ERROR', error: friendly, metadata });
+        setTimeout(() => {
+          if (window.opener && !window.opener.closed) {
+            window.close();
+          } else {
+            window.location.replace('/login.html');
+          }
+        }, 3000);
+        return;
+      }
+
+      if (!token) {
+        statusMessageEl.textContent = 'Missing authentication token. Please try signing in again.';
+        postToOpener({ type: 'OAUTH_ERROR', error: 'Token missing from callback', metadata });
+        setTimeout(() => window.location.replace('/login.html'), 2500);
+        return;
+      }
+
+      try {
+        authService.setToken(token);
+        await authService.getCurrentUser().catch(() => {});
+        postToOpener({ type: 'OAUTH_SUCCESS', token, metadata });
+
+        if (window.opener && !window.opener.closed) {
+          window.close();
+        } else {
+          window.location.replace(redirectTarget);
+        }
+      } catch (callbackError) {
+        console.error('OAuth callback error:', callbackError);
+        statusMessageEl.textContent = 'Something went wrong while finishing the sign-in. Please try again.';
+        postToOpener({ type: 'OAUTH_ERROR', error: callbackError.message || 'OAuth callback failed', metadata });
+        setTimeout(() => window.location.replace('/login.html'), 2800);
+      }
+    })();
+  </script>
+</body>
+</html>
