@@ -7,7 +7,7 @@ const taskController = {
   getAllTasks: async (req, res) => {
     try {
       const { status, subject, completed } = req.query;
-      const query = {};
+      const query = { userId: req.user._id };
       
       if (status) query.status = status;
       if (subject) query.subject = subject;
@@ -34,7 +34,7 @@ const taskController = {
   getTaskById: async (req, res) => {
     try {
       const { id } = req.params;
-      const task = await Task.findById(id).lean();
+      const task = await Task.findOne({ _id: id, userId: req.user._id }).lean();
       
       if (!task) {
         return res.status(404).json({ 
@@ -95,7 +95,7 @@ const taskController = {
         actualDuration: typeof payload.actualDuration === 'number' ? payload.actualDuration : null,
         tags: Array.isArray(payload.tags) ? payload.tags : [],
         notes: payload.notes || '',
-        userId: payload.userId || null
+        userId: req.user._id
       };
 
       const task = new Task(taskData);
@@ -146,8 +146,8 @@ const taskController = {
         updates.dueDate = new Date(updates.dueDate);
       }
 
-      const task = await Task.findByIdAndUpdate(
-        id,
+      const task = await Task.findOneAndUpdate(
+        { _id: id, userId: req.user._id },
         { $set: updates },
         { new: true, runValidators: true }
       );
@@ -195,7 +195,7 @@ const taskController = {
   deleteTask: async (req, res) => {
     try {
       const { id } = req.params;
-      const task = await Task.findByIdAndDelete(id);
+      const task = await Task.findOneAndDelete({ _id: id, userId: req.user._id });
 
       if (!task) {
         return res.status(404).json({ 
