@@ -58,9 +58,15 @@ class SmartMentorChatbot {
         this.renderTasks();
         const fetchTasksPromise = this.fetchTasks();
         if (fetchTasksPromise && typeof fetchTasksPromise.then === 'function') {
-            fetchTasksPromise.then(() => this.initAnalyticsAndCharts()).catch(() => this.initAnalyticsAndCharts());
+            fetchTasksPromise.then(() => {
+                this.initProgressChart();
+                this.initAnalyticsAndCharts();
+            }).catch(() => this.initAnalyticsAndCharts());
         } else {
-            setTimeout(() => this.initAnalyticsAndCharts(), 300);
+            setTimeout(() => {
+                this.initProgressChart();
+                this.initAnalyticsAndCharts();
+            }, 300);
         }
         this.fetchTimetable();
         this.setupCalendar();
@@ -1756,8 +1762,224 @@ class SmartMentorChatbot {
         };
     }
 
+    initProgressChart() {
+        const canvas = document.getElementById('progressGraphCanvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        
+        // Destroy existing chart if any
+        if (this.charts && this.charts.progress) {
+            this.charts.progress.destroy();
+        }
+
+        // Get real data from tasks
+        const weekData = this.getWeeklyProgressData();
+        
+        // Create beautiful gradients
+        const gradientFill = ctx.createLinearGradient(0, 0, 0, 350);
+        gradientFill.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+        gradientFill.addColorStop(0.5, 'rgba(59, 130, 246, 0.15)');
+        gradientFill.addColorStop(1, 'rgba(59, 130, 246, 0.01)');
+
+        const gradientStroke = ctx.createLinearGradient(0, 0, 0, 350);
+        gradientStroke.addColorStop(0, 'rgb(96, 165, 250)');
+        gradientStroke.addColorStop(0.5, 'rgb(59, 130, 246)');
+        gradientStroke.addColorStop(1, 'rgb(37, 99, 235)');
+
+        this.charts = this.charts || {};
+        this.charts.progress = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: weekData.labels,
+                datasets: [{
+                    label: 'Tasks Completed',
+                    data: weekData.completed,
+                    backgroundColor: gradientFill,
+                    borderColor: gradientStroke,
+                    borderWidth: 4,
+                    fill: true,
+                    tension: 0.45, // Smooth curves
+                    pointRadius: 8,
+                    pointHoverRadius: 12,
+                    pointBackgroundColor: 'rgb(59, 130, 246)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 3,
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(59, 130, 246)',
+                    pointHoverBorderWidth: 4,
+                    pointShadowOffsetX: 0,
+                    pointShadowOffsetY: 2,
+                    pointShadowBlur: 8,
+                    pointShadowColor: 'rgba(59, 130, 246, 0.5)',
+                    // Add glow effect
+                    shadowOffsetX: 0,
+                    shadowOffsetY: 0,
+                    shadowBlur: 10,
+                    shadowColor: 'rgba(59, 130, 246, 0.5)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 10,
+                        right: 10,
+                        bottom: 10,
+                        left: 5
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            label: (context) => `${context.parsed.y} tasks completed`,
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)',
+                            drawBorder: false,
+                        },
+                        ticks: {
+                            color: 'rgba(148, 163, 184, 0.8)',
+                            stepSize: 1,
+                            padding: 8,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: 'rgba(148, 163, 184, 0.8)',
+                            padding: 8,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+                animation: {
+                    duration: 1500,
+                    easing: 'easeInOutCubic',
+                }
+            },
+            plugins: [{
+                // Custom plugin for adding glow effect to points
+                beforeDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    chart.data.datasets.forEach(function(dataset, datasetIndex) {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        if (!meta.hidden) {
+                            meta.data.forEach(function(element, index) {
+                                ctx.save();
+                                
+                                // Draw glow
+                                ctx.shadowColor = 'rgba(59, 130, 246, 0.6)';
+                                ctx.shadowBlur = 15;
+                                ctx.shadowOffsetX = 0;
+                                ctx.shadowOffsetY = 0;
+                                
+                                // Draw point glow
+                                ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+                                ctx.beginPath();
+                                ctx.arc(element.x, element.y, 12, 0, 2 * Math.PI);
+                                ctx.fill();
+                                
+                                ctx.restore();
+                            });
+                        }
+                    });
+                }
+            }]
+        });
+
+        // Update summary stats
+        this.updateProgressSummary(weekData);
+    }
+
+    getWeeklyProgressData() {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+        
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const labels = [];
+        const completed = [];
+        
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(weekStart);
+            date.setDate(weekStart.getDate() + i);
+            labels.push(days[i]);
+            
+            // Count completed tasks for this day
+            const dayTasks = this.tasks.filter(task => {
+                if (!task.dueDate) return false;
+                const taskDate = new Date(task.dueDate);
+                return taskDate.toDateString() === date.toDateString() && task.completed;
+            });
+            
+            completed.push(dayTasks.length);
+        }
+        
+        return { labels, completed };
+    }
+
+    updateProgressSummary(weekData) {
+        const totalCompleted = weekData.completed.reduce((sum, val) => sum + val, 0);
+        const totalTasks = this.tasks.length;
+        const inProgress = this.tasks.filter(t => !t.completed && t.progress > 0).length;
+        const avgScore = this.calculateAverageScore();
+        
+        // Update summary values
+        const summaryItems = document.querySelectorAll('.progress-summary__item');
+        if (summaryItems[0]) {
+            summaryItems[0].querySelector('.progress-summary__value').textContent = totalCompleted;
+        }
+        if (summaryItems[1]) {
+            summaryItems[1].querySelector('.progress-summary__value').textContent = inProgress;
+        }
+        if (summaryItems[2]) {
+            summaryItems[2].querySelector('.progress-summary__value').textContent = avgScore + '%';
+        }
+    }
+
+    calculateAverageScore() {
+        const completedTasks = this.tasks.filter(t => t.completed);
+        if (completedTasks.length === 0) return 0;
+        
+        const totalScore = completedTasks.reduce((sum, task) => {
+            // Assume score based on priority and completion
+            const priorityScore = { high: 95, medium: 85, low: 75 };
+            return sum + (priorityScore[task.priority] || 80);
+        }, 0);
+        
+        return Math.round(totalScore / completedTasks.length);
+    }
+
     initCharts() {
-        this.drawLineChart(this.currentProgressView || 'weekly');
+        // This method is now largely redundant as initProgressChart handles the main dashboard chart
+        // We can keep it for future chart initializations if needed
+        // this.drawLineChart(this.currentProgressView || 'weekly'); 
     }
 
     animateEntrance(el, options = {}) {
@@ -2709,18 +2931,122 @@ class SmartMentorChatbot {
             cell.setAttribute('aria-selected', isSelected ? 'true' : 'false');
             const eventSuffix = events.length ? `, ${events.length} event${events.length > 1 ? 's' : ''}` : '';
             cell.setAttribute('aria-label', `${monthName} ${d}, ${year}${eventSuffix}`);
-            if (events.length) cell.innerHTML += '<span class="calendar__day-dot"></span>';
+            if (events.length) cell.classList.add('calendar__day--has-events');
 
-            cell.addEventListener('click', (e) => { this.createRipple(e, cell); this.selectCalendarDate(dateObj); this.openDayModal(dateObj); });
+            cell.addEventListener('click', (e) => { 
+                this.createRipple(e, cell); 
+                this.selectCalendarDate(dateObj); 
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                this.handleCalendarDayClick(dateStr);
+            });
             container.appendChild(cell);
         }
     }
 
-    openDayModal(dateObj) {
-        if (!this.elements.dayDetailModal || !this.elements.dayDetailDate) return;
-        const d = dateObj || new Date();
-        this.elements.dayDetailDate.textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    handleCalendarDayClick(dateStr) {
+        const date = new Date(dateStr);
+        const modal = this.elements.dayDetailModal;
+        const dateDisplay = this.elements.dayDetailDate;
+        const modalBody = modal.querySelector('.modal-body');
+        
+        if (!modal || !dateDisplay) return;
+        
+        // Format date nicely
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateDisplay.textContent = date.toLocaleDateString('en-US', options);
+        
+        // Get tasks and events for this day
+        const dayTasks = this.tasks.filter(task => {
+            if (!task.dueDate) return false;
+            const taskDate = new Date(task.dueDate);
+            return taskDate.toDateString() === date.toDateString();
+        });
+        
+        const dayEvents = this.calendarState.eventsByDate[dateStr] || [];
+        
+        // Build summary HTML
+        let summaryHTML = `
+            <div class="day-summary">
+                <div class="day-summary__stats">
+                    <div class="day-stat">
+                        <div class="day-stat__value">${dayTasks.length}</div>
+                        <div class="day-stat__label">Tasks</div>
+                    </div>
+                    <div class="day-stat">
+                        <div class="day-stat__value">${dayTasks.filter(t => t.completed).length}</div>
+                        <div class="day-stat__label">Completed</div>
+                    </div>
+                    <div class="day-stat">
+                        <div class="day-stat__value">${dayEvents.length}</div>
+                        <div class="day-stat__label">Events</div>
+                    </div>
+                </div>
+        `;
+        
+        if (dayTasks.length > 0) {
+            summaryHTML += `
+                <div class="day-summary__section">
+                    <h4>Tasks for this day:</h4>
+                    <ul class="day-tasks-list">
+                        ${dayTasks.map(task => `
+                            <li class="day-task-item">
+                                <input type="checkbox" ${task.completed ? 'checked' : ''} disabled />
+                                <span class="${task.completed ? 'completed' : ''}">${task.title}</span>
+                                <span class="task-priority priority-${task.priority}">${task.priority}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (dayEvents.length > 0) {
+            summaryHTML += `
+                <div class="day-summary__section">
+                    <h4>Events:</h4>
+                    <ul class="day-events-list">
+                        ${dayEvents.map(event => `
+                            <li class="day-event-item">
+                                <span class="event-time">${event.time || 'All day'}</span>
+                                <span class="event-title">${event.title}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (dayTasks.length === 0 && dayEvents.length === 0) {
+            summaryHTML += `
+                <div class="day-summary__empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <p>No tasks or events scheduled for this day</p>
+                </div>
+            `;
+        }
+        
+        summaryHTML += '</div>';
+        
+        // Replace modal body content
+        const existingSummary = modalBody.querySelector('.day-summary');
+        if (existingSummary) {
+            existingSummary.remove();
+        }
+        modalBody.insertAdjacentHTML('afterbegin', summaryHTML);
+        
+        // Show modal
         this.openModal('day-detail-modal');
+    }
+
+    openDayModal(dateObj) {
+        // This function is now replaced by handleCalendarDayClick
+        // It's kept as a stub or can be removed if no other calls exist
+        console.warn('openDayModal is deprecated, use handleCalendarDayClick instead.');
     }
 
     buildEventsFromData() {
