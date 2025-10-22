@@ -1,101 +1,221 @@
-const crypto = require('crypto');
-const datastore = require('../datastore');
-
-function isISODate(val) {
-  if (val == null) return false;
-  const d = new Date(val);
-  return !isNaN(d.getTime());
-}
-
-function validateEventPayload(payload, isUpdate = false) {
-  const errors = [];
-  if (!isUpdate && (!payload.title || typeof payload.title !== 'string' || payload.title.trim().length === 0)) {
-    errors.push({ field: 'title', message: 'Title is required' });
-  }
-  if (!isUpdate && (!payload.date || !isISODate(payload.date))) {
-    errors.push({ field: 'date', message: 'date is required and must be a valid date string' });
-  }
-  if (payload.title && typeof payload.title !== 'string') {
-    errors.push({ field: 'title', message: 'Title must be a string' });
-  }
-  if (payload.date && !isISODate(payload.date)) {
-    errors.push({ field: 'date', message: 'date must be a valid date string' });
-  }
-  if (payload.subject && typeof payload.subject !== 'string') {
-    errors.push({ field: 'subject', message: 'Subject must be a string' });
-  }
-  if (payload.type && typeof payload.type !== 'string') {
-    errors.push({ field: 'type', message: 'type must be a string' });
-  }
-  return { valid: errors.length === 0, errors };
-}
+const Event = require('../models/Event');
 
 const eventsController = {
-  getEvents: async (req, res) => {
+  getAll: async (req, res) => {
     try {
-      const events = datastore.get('events') || [];
-      res.json({ success: true, message: 'Events retrieved successfully', data: events, count: events.length });
+      const { type, subject, upcoming } = req.query;
+      const query = {};
+      
+      if (type) query.type = type;
+      if (subject) query.subject = subject;
+      if (upcoming === 'true') {
+        query.date = { $gte: new Date() };
+      }
+      
+      const events = await Event.find(query).sort({ date: 1 }).lean();
+      
+      res.json({
+        success: true,
+        message: 'Events retrieved successfully',
+        data: events,
+        count: events.length
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error retrieving events', error: error.message });
+      console.error('[EventsController] Error retrieving events:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving events',
+        error: error.message
+      });
     }
   },
 
-  getEventById: async (req, res) => {
+  getById: async (req, res) => {
     try {
       const { id } = req.params;
-      const events = datastore.get('events') || [];
-      const event = events.find(e => e.id === id);
-      if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
-      res.json({ success: true, message: 'Event retrieved successfully', data: event });
+      const event = await Event.findById(id).lean();
+      
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Event retrieved successfully',
+        data: event
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error retrieving event', error: error.message });
+      console.error('[EventsController] Error retrieving event:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid event ID format',
+          error: error.message
+        });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving event',
+        error: error.message
+      });
     }
   },
 
-  createEvent: async (req, res) => {
+  create: async (req, res) => {
     try {
       const payload = req.body || {};
-      const { valid, errors } = validateEventPayload(payload, false);
-      if (!valid) return res.status(400).json({ success: false, message: 'Invalid event payload', errors });
+      
+      if (!payload.title || typeof payload.title !== 'string' || payload.title.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title is required and must be a non-empty string'
+        });
+      }
+      
+      if (!payload.date) {
+        return res.status(400).json({
+          success: false,
+          message: 'Date is required'
+        });
+      }
 
-      const newEvent = {
-        id: `e_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}`,
+      const eventData = {
         title: payload.title.trim(),
-        date: new Date(payload.date).toISOString(),
-        subject: payload.subject || null,
-        type: payload.type || 'general',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        date: new Date(payload.date),
+        type: payload.type || 'other',
+        subject: payload.subject || '',
+        location: payload.location || '',
+        description: payload.description || '',
+        duration: payload.duration || null,
+        completed: payload.completed || false,
+        userId: payload.userId || null
       };
 
-      await datastore.update('events', (events) => {
-        const arr = Array.isArray(events) ? events : [];
-        return [...arr, newEvent];
-      });
+      const event = new Event(eventData);
+      await event.save();
 
-      res.status(201).json({ success: true, message: 'Event created successfully', data: newEvent });
+      res.status(201).json({
+        success: true,
+        message: 'Event created successfully',
+        data: event
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error creating event', error: error.message });
+      console.error('[EventsController] Error creating event:', error);
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          error: error.message,
+          errors: Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          }))
+        });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Error creating event',
+        error: error.message
+      });
     }
   },
 
-  deleteEvent: async (req, res) => {
+  update: async (req, res) => {
     try {
       const { id } = req.params;
-      let existed = false;
-      await datastore.update('events', (events) => {
-        const arr = Array.isArray(events) ? events : [];
-        const before = arr.length;
-        const filtered = arr.filter(e => e.id !== id);
-        existed = before !== filtered.length;
-        return filtered;
+      const updates = req.body || {};
+      
+      delete updates._id;
+      delete updates.createdAt;
+      
+      if (updates.title) {
+        updates.title = updates.title.trim();
+      }
+      
+      if (updates.date) {
+        updates.date = new Date(updates.date);
+      }
+
+      const event = await Event.findByIdAndUpdate(
+        id,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Event updated successfully',
+        data: event
       });
-
-      if (!existed) return res.status(404).json({ success: false, message: 'Event not found' });
-
-      res.json({ success: true, message: 'Event deleted successfully', data: { id } });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error deleting event', error: error.message });
+      console.error('[EventsController] Error updating event:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid event ID format',
+          error: error.message
+        });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          error: error.message,
+          errors: Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          }))
+        });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Error updating event',
+        error: error.message
+      });
+    }
+  },
+
+  remove: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const event = await Event.findByIdAndDelete(id);
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Event deleted successfully',
+        data: { id: event._id }
+      });
+    } catch (error) {
+      console.error('[EventsController] Error deleting event:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid event ID format',
+          error: error.message
+        });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting event',
+        error: error.message
+      });
     }
   }
 };

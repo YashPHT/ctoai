@@ -1,4 +1,5 @@
-const datastore = require('../datastore');
+const Task = require('../models/Task');
+const StudyPlan = require('../models/StudyPlan');
 
 function priorityValue(p) {
   switch ((p || '').toLowerCase()) {
@@ -21,33 +22,16 @@ function daysUntil(dateStr) {
 const studyPlanController = {
   getAllStudyPlans: async (req, res) => {
     try {
-      const studyPlans = [
-        {
-          id: '1',
-          title: 'Final Exam Preparation',
-          description: 'Study plan for upcoming final exams',
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          status: 'active',
-          subjects: [
-            { name: 'Mathematics', hoursPerWeek: 5, priority: 'high' },
-            { name: 'Biology', hoursPerWeek: 4, priority: 'medium' }
-          ],
-          progress: {
-            totalPlannedHours: 36,
-            totalCompletedHours: 12,
-            completionPercentage: 33
-          }
-        }
-      ];
+      const plans = await StudyPlan.find({}).sort({ createdAt: -1 }).lean();
 
       res.json({
         success: true,
-        message: 'Study plans retrieved successfully (placeholder data)',
-        data: studyPlans,
-        count: studyPlans.length
+        message: 'Study plans retrieved successfully',
+        data: plans,
+        count: plans.length
       });
     } catch (error) {
+      console.error('[StudyPlanController] Error retrieving study plans:', error);
       res.status(500).json({
         success: false,
         message: 'Error retrieving study plans',
@@ -59,27 +43,29 @@ const studyPlanController = {
   getStudyPlanById: async (req, res) => {
     try {
       const { id } = req.params;
+      const plan = await StudyPlan.findById(id).lean();
+
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          message: 'Study plan not found'
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Study plan retrieved successfully (placeholder data)',
-        data: {
-          id,
-          title: 'Sample Study Plan',
-          description: 'This is a placeholder study plan',
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          status: 'active',
-          subjects: [],
-          sessions: [],
-          progress: {
-            totalPlannedHours: 0,
-            totalCompletedHours: 0,
-            completionPercentage: 0
-          }
-        }
+        message: 'Study plan retrieved successfully',
+        data: plan
       });
     } catch (error) {
+      console.error('[StudyPlanController] Error retrieving study plan:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid study plan ID format',
+          error: error.message
+        });
+      }
       res.status(500).json({
         success: false,
         message: 'Error retrieving study plan',
@@ -92,17 +78,27 @@ const studyPlanController = {
     try {
       const studyPlanData = req.body;
 
+      const plan = new StudyPlan(studyPlanData);
+      await plan.save();
+
       res.status(201).json({
         success: true,
-        message: 'Study plan created successfully (placeholder)',
-        data: {
-          id: Date.now().toString(),
-          ...studyPlanData,
-          status: 'draft',
-          createdAt: new Date()
-        }
+        message: 'Study plan created successfully',
+        data: plan
       });
     } catch (error) {
+      console.error('[StudyPlanController] Error creating study plan:', error);
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          error: error.message,
+          errors: Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          }))
+        });
+      }
       res.status(500).json({
         success: false,
         message: 'Error creating study plan',
@@ -114,18 +110,49 @@ const studyPlanController = {
   updateStudyPlan: async (req, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      const updates = req.body || {};
+
+      delete updates._id;
+      delete updates.createdAt;
+
+      const plan = await StudyPlan.findByIdAndUpdate(
+        id,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          message: 'Study plan not found'
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Study plan updated successfully (placeholder)',
-        data: {
-          id,
-          ...updates,
-          updatedAt: new Date()
-        }
+        message: 'Study plan updated successfully',
+        data: plan
       });
     } catch (error) {
+      console.error('[StudyPlanController] Error updating study plan:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid study plan ID format',
+          error: error.message
+        });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          error: error.message,
+          errors: Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          }))
+        });
+      }
       res.status(500).json({
         success: false,
         message: 'Error updating study plan',
@@ -137,13 +164,29 @@ const studyPlanController = {
   deleteStudyPlan: async (req, res) => {
     try {
       const { id } = req.params;
+      const plan = await StudyPlan.findByIdAndDelete(id);
+
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          message: 'Study plan not found'
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Study plan deleted successfully (placeholder)',
-        data: { id }
+        message: 'Study plan deleted successfully',
+        data: { id: plan._id }
       });
     } catch (error) {
+      console.error('[StudyPlanController] Error deleting study plan:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid study plan ID format',
+          error: error.message
+        });
+      }
       res.status(500).json({
         success: false,
         message: 'Error deleting study plan',
@@ -170,6 +213,7 @@ const studyPlanController = {
         }
       });
     } catch (error) {
+      console.error('[StudyPlanController] Error adding study session:', error);
       res.status(500).json({
         success: false,
         message: 'Error adding study session',
@@ -180,18 +224,20 @@ const studyPlanController = {
 
   computeStudyPlan: async (req, res) => {
     try {
-      const tasks = (datastore.get('tasks') || []).filter(t => t.status !== 'completed');
+      // Get incomplete tasks from MongoDB
+      const tasks = await Task.find({ status: { $ne: 'completed' } }).lean();
+      
       const dailyCapacityHours = Math.max(1, parseFloat(req.query.dailyHours || '4'));
       const windowDays = Math.max(1, parseInt(req.query.windowDays || '7', 10));
 
       const scored = tasks.map(t => {
-        const estHours = (typeof t.estimatedDuration === 'number' ? t.estimatedDuration : 60) / 60; // default 1 hour
-        const pScore = priorityValue(t.priority) / 4; // 0..1
+        const estHours = (typeof t.estimatedDuration === 'number' ? t.estimatedDuration : 60) / 60;
+        const pScore = priorityValue(t.priority) / 4;
         const d = daysUntil(t.dueDate);
-        const uScore = isFinite(d) ? 1 / (Math.max(d, 0) + 1) : 0.2; // 0..1
+        const uScore = isFinite(d) ? 1 / (Math.max(d, 0) + 1) : 0.2;
         const score = 0.6 * pScore + 0.4 * uScore;
         return {
-          id: t.id,
+          id: t._id.toString(),
           title: t.title,
           subject: t.subject || null,
           dueDate: t.dueDate || null,
@@ -201,7 +247,7 @@ const studyPlanController = {
         };
       }).sort((a, b) => b.score - a.score);
 
-      // Build daily schedule by distributing remaining hours greedily
+      // Build daily schedule
       const remaining = scored.map(s => ({ ...s, hoursRemaining: s.estimatedHours }));
       const dailySchedule = [];
       for (let d = 0; d < windowDays; d++) {
@@ -232,7 +278,12 @@ const studyPlanController = {
         }
       });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error generating study plan', error: error.message });
+      console.error('[StudyPlanController] Error generating study plan:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error generating study plan', 
+        error: error.message 
+      });
     }
   }
 };
