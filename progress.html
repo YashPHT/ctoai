@@ -123,11 +123,17 @@
     <div class="modal-content"><div class="modal-header"><h2 id="day-detail-title">Day Summary</h2><button type="button" class="icon-button modal-close" data-close-modal="day-detail-modal" aria-label="Close day details"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div><div class="modal-body"><p id="day-detail-date">—</p></div><div class="modal-actions"><button type="button" class="secondary-button" disabled>Add Event (stub)</button><button type="button" class="primary-button" data-close-modal="day-detail-modal">Close</button></div></div>
   </div>
 
+  <!-- Add Chart.js before other scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  
+  <!-- Then load your scripts -->
   <script src="public/js/api.js"></script>
   <script src="public/js/chatbot.js"></script>
   <script src="script.js"></script>
   <script src="public/js/modules/utils.js"></script>
   <script src="public/js/modules/nav.js"></script>
+  <script src="public/js/progress-backend.js"></script>
   <script src="public/js/modules/main.js"></script>
 </body>
 </html>
+
