@@ -1,64 +1,112 @@
-const crypto = require('crypto');
-const datastore = require('../datastore');
-
-function validateSubjectPayload(payload, isUpdate = false) {
-  const errors = [];
-  if (!isUpdate && (!payload.name || typeof payload.name !== 'string' || payload.name.trim().length === 0)) {
-    errors.push({ field: 'name', message: 'Name is required' });
-  }
-  if (payload.name && typeof payload.name !== 'string') {
-    errors.push({ field: 'name', message: 'Name must be a string' });
-  }
-  if (payload.color && typeof payload.color !== 'string') {
-    errors.push({ field: 'color', message: 'Color must be a string' });
-  }
-  return { valid: errors.length === 0, errors };
-}
+const Subject = require('../models/Subject');
 
 const subjectsController = {
   getAll: async (req, res) => {
     try {
-      const subjects = datastore.get('subjects') || [];
-      res.json({ success: true, message: 'Subjects retrieved successfully', data: subjects, count: subjects.length });
+      const subjects = await Subject.find({}).sort({ name: 1 }).lean();
+      res.json({ 
+        success: true, 
+        message: 'Subjects retrieved successfully', 
+        data: subjects, 
+        count: subjects.length 
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error retrieving subjects', error: error.message });
+      console.error('[SubjectsController] Error retrieving subjects:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error retrieving subjects', 
+        error: error.message 
+      });
     }
   },
 
   getById: async (req, res) => {
     try {
       const { id } = req.params;
-      const subjects = datastore.get('subjects') || [];
-      const subject = subjects.find(s => s.id === id);
-      if (!subject) return res.status(404).json({ success: false, message: 'Subject not found' });
-      res.json({ success: true, message: 'Subject retrieved successfully', data: subject });
+      const subject = await Subject.findById(id).lean();
+      
+      if (!subject) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Subject not found' 
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Subject retrieved successfully', 
+        data: subject 
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error retrieving subject', error: error.message });
+      console.error('[SubjectsController] Error retrieving subject:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid subject ID format',
+          error: error.message
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error retrieving subject', 
+        error: error.message 
+      });
     }
   },
 
   create: async (req, res) => {
     try {
       const payload = req.body || {};
-      const { valid, errors } = validateSubjectPayload(payload, false);
-      if (!valid) return res.status(400).json({ success: false, message: 'Invalid subject payload', errors });
+      
+      if (!payload.name || typeof payload.name !== 'string' || payload.name.trim().length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Name is required and must be a non-empty string' 
+        });
+      }
 
-      const newSubject = {
-        id: `s_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()}`,
+      const subjectData = {
         name: payload.name.trim(),
-        color: payload.color || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        color: payload.color || '#3b82f6',
+        hoursSpent: payload.hoursSpent || 0,
+        description: payload.description || '',
+        teacher: payload.teacher || '',
+        userId: payload.userId || null
       };
 
-      await datastore.update('subjects', (subjects) => {
-        const arr = Array.isArray(subjects) ? subjects : [];
-        return [...arr, newSubject];
-      });
+      const subject = new Subject(subjectData);
+      await subject.save();
 
-      res.status(201).json({ success: true, message: 'Subject created successfully', data: newSubject });
+      res.status(201).json({ 
+        success: true, 
+        message: 'Subject created successfully', 
+        data: subject 
+      });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error creating subject', error: error.message });
+      console.error('[SubjectsController] Error creating subject:', error);
+      if (error.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'A subject with this name already exists',
+          error: error.message
+        });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          error: error.message,
+          errors: Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          }))
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error creating subject', 
+        error: error.message 
+      });
     }
   },
 
@@ -66,47 +114,98 @@ const subjectsController = {
     try {
       const { id } = req.params;
       const updates = req.body || {};
-      const { valid, errors } = validateSubjectPayload(updates, true);
-      if (!valid) return res.status(400).json({ success: false, message: 'Invalid subject payload', errors });
+      
+      delete updates._id;
+      delete updates.createdAt;
+      
+      if (updates.name) {
+        updates.name = updates.name.trim();
+      }
 
-      let updated = null;
-      await datastore.update('subjects', (subjects) => {
-        const arr = Array.isArray(subjects) ? subjects : [];
-        const idx = arr.findIndex(s => s.id === id);
-        if (idx === -1) return arr;
-        const next = { ...arr[idx], ...updates };
-        if (updates.name) next.name = updates.name.trim();
-        next.updatedAt = new Date().toISOString();
-        arr[idx] = next;
-        updated = next;
-        return arr;
+      const subject = await Subject.findByIdAndUpdate(
+        id,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+
+      if (!subject) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Subject not found' 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Subject updated successfully', 
+        data: subject 
       });
-
-      if (!updated) return res.status(404).json({ success: false, message: 'Subject not found' });
-
-      res.json({ success: true, message: 'Subject updated successfully', data: updated });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error updating subject', error: error.message });
+      console.error('[SubjectsController] Error updating subject:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid subject ID format',
+          error: error.message
+        });
+      }
+      if (error.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'A subject with this name already exists',
+          error: error.message
+        });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          error: error.message,
+          errors: Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          }))
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error updating subject', 
+        error: error.message 
+      });
     }
   },
 
   remove: async (req, res) => {
     try {
       const { id } = req.params;
-      let existed = false;
-      await datastore.update('subjects', (subjects) => {
-        const arr = Array.isArray(subjects) ? subjects : [];
-        const before = arr.length;
-        const filtered = arr.filter(s => s.id !== id);
-        existed = before !== filtered.length;
-        return filtered;
+      const subject = await Subject.findByIdAndDelete(id);
+
+      if (!subject) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Subject not found' 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Subject deleted successfully', 
+        data: { id: subject._id } 
       });
-
-      if (!existed) return res.status(404).json({ success: false, message: 'Subject not found' });
-
-      res.json({ success: true, message: 'Subject deleted successfully', data: { id } });
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error deleting subject', error: error.message });
+      console.error('[SubjectsController] Error deleting subject:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid subject ID format',
+          error: error.message
+        });
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error deleting subject', 
+        error: error.message 
+      });
     }
   }
 };

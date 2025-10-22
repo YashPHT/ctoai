@@ -1,10 +1,14 @@
-const datastore = require('../datastore');
+const Task = require('../models/Task');
+const Subject = require('../models/Subject');
+const Event = require('../models/Event');
 
 function toNumber(val, def = 0) {
   return typeof val === 'number' && !isNaN(val) ? val : def;
 }
 
-function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+function clamp(n, min, max) { 
+  return Math.max(min, Math.min(max, n)); 
+}
 
 function startOfDay(d) {
   const x = new Date(d);
@@ -12,7 +16,10 @@ function startOfDay(d) {
   return x;
 }
 
-function formatHourLabel(i) { return `${String(i).padStart(2, '0')}:00`; }
+function formatHourLabel(i) { 
+  return `${String(i).padStart(2, '0')}:00`; 
+}
+
 function formatDayLabel(d) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
@@ -21,10 +28,13 @@ const analyticsController = {
   getAnalytics: async (req, res) => {
     try {
       const now = new Date();
-      const tasks = datastore.get('tasks') || [];
-      const subjects = datastore.get('subjects') || [];
-      const events = datastore.get('events') || [];
+      
+      // Fetch all tasks, subjects, and events from MongoDB
+      const tasks = await Task.find({}).lean();
+      const subjects = await Subject.find({}).lean();
+      const events = await Event.find({}).lean();
 
+      // Calculate totals
       const totals = {
         totalTasks: tasks.length,
         completedTasks: tasks.filter(t => t.status === 'completed').length,
@@ -33,6 +43,7 @@ const analyticsController = {
       };
       const completionRate = totals.totalTasks ? +(totals.completedTasks / totals.totalTasks * 100).toFixed(2) : 0;
 
+      // Per subject analysis
       const perSubject = {};
       for (const t of tasks) {
         const key = t.subject || 'Uncategorized';
@@ -45,20 +56,21 @@ const analyticsController = {
         perSubject[key].actualMinutes += toNumber(t.actualDuration, 0);
       }
 
+      // Upcoming tasks
       const upcomingTasks = tasks
         .filter(t => t.dueDate && !isNaN(Date.parse(t.dueDate)))
         .map(t => ({
-          id: t.id,
+          id: t._id,
           title: t.title,
           subject: t.subject || null,
           dueDate: t.dueDate,
           daysUntilDue: Math.ceil((new Date(t.dueDate).getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
         }))
-        .filter(x => x.daysUntilDue >= -1) // include overdue by 1 day
+        .filter(x => x.daysUntilDue >= -1)
         .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
         .slice(0, 5);
 
-      // Time series (for day/week/month) based on dueDate counts
+      // Time series based on period query parameter
       const period = String(req.query.period || '').toLowerCase();
       const effectivePeriod = ['day', 'week', 'month'].includes(period) ? period : 'week';
 
@@ -96,11 +108,10 @@ const analyticsController = {
 
       const timeSeries = buildSeries(effectivePeriod);
 
-      // Legacy trend structure for compatibility (weekly, monthly, yearly)
+      // Legacy trend structure for compatibility
       function buildWeekly() { return buildSeries('week').values; }
       function buildMonthly() { return buildSeries('month').values; }
       function buildYearly() {
-        // monthly buckets by month for current year
         const year = now.getFullYear();
         const arr = Array(12).fill(0);
         for (const t of tasks) {
@@ -112,7 +123,7 @@ const analyticsController = {
         return arr;
       }
 
-      // Hours by subject (estimated vs actual) in hours
+      // Hours by subject
       const subjectsArray = Object.entries(perSubject).map(([name, s]) => ({
         subject: name,
         estimatedHours: +(toNumber(s.estimatedMinutes, 0) / 60).toFixed(2),
@@ -145,7 +156,12 @@ const analyticsController = {
 
       res.json(response);
     } catch (error) {
-      res.status(500).json({ success: false, message: 'Error computing analytics', error: error.message });
+      console.error('[AnalyticsController] Error computing analytics:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error computing analytics', 
+        error: error.message 
+      });
     }
   }
 };

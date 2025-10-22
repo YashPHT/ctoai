@@ -3,38 +3,40 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
+    required: [true, 'Username is required'],
     unique: true,
     trim: true,
-    minlength: 3,
-    maxlength: 50
+    minlength: [3, 'Username must be at least 3 characters'],
+    maxlength: [50, 'Username cannot exceed 50 characters']
   },
   email: {
     type: String,
-    required: true,
+    required: [true, 'Email is required'],
     unique: true,
     trim: true,
     lowercase: true,
     match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address']
   },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6
-  },
   firstName: {
     type: String,
     trim: true,
-    maxlength: 50
+    maxlength: [50, 'First name cannot exceed 50 characters']
   },
   lastName: {
     type: String,
     trim: true,
-    maxlength: 50
+    maxlength: [50, 'Last name cannot exceed 50 characters']
   },
-  avatar: {
+  role: {
     type: String,
-    default: ''
+    enum: ['student', 'teacher', 'admin'],
+    default: 'student'
+  },
+  profile: {
+    avatar: String,
+    bio: String,
+    grade: String,
+    school: String
   },
   preferences: {
     theme: {
@@ -43,37 +45,33 @@ const userSchema = new mongoose.Schema({
       default: 'auto'
     },
     notifications: {
-      type: Boolean,
-      default: true
-    },
-    studyReminders: {
-      type: Boolean,
-      default: true
-    }
-  },
-  stats: {
-    tasksCompleted: {
-      type: Number,
-      default: 0
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+      reminders: { type: Boolean, default: true }
     },
     studyHours: {
-      type: Number,
-      default: 0
-    },
-    streak: {
-      type: Number,
-      default: 0
-    },
-    lastActive: {
-      type: Date,
-      default: Date.now
+      dailyGoal: { type: Number, default: 4 },
+      preferredTimes: [String]
     }
   }
 }, {
   timestamps: true
 });
 
+// Indexes
 userSchema.index({ email: 1 });
 userSchema.index({ username: 1 });
+
+// Virtual for full name
+userSchema.virtual('fullName').get(function() {
+  if (this.firstName && this.lastName) {
+    return `${this.firstName} ${this.lastName}`;
+  }
+  return this.firstName || this.lastName || this.username;
+});
+
+// Ensure virtuals are included in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const datastore = require('./datastore');
+const database = require('./config/database');
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -29,7 +29,7 @@ if (trustProxyEnv) {
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:8080', // Changed to 8080 for http-server
+  origin: process.env.CORS_ORIGIN || 'http://localhost:8080',
   credentials: true
 }));
 
@@ -69,14 +69,18 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
+  const dbStatus = database.getConnectionStatus();
   res.json({
     success: true,
     message: 'Server is running',
     timestamp: new Date(),
     uptime: process.uptime(),
-    datastore: {
-      dataDir: datastore.state.dataDir,
-      collections: Array.from(datastore.state.cache.keys())
+    database: {
+      status: dbStatus.readyState,
+      connected: dbStatus.isConnected,
+      host: dbStatus.host,
+      name: dbStatus.name,
+      models: dbStatus.models
     }
   });
 });
@@ -103,20 +107,37 @@ app.use(errorHandler);
 
 async function start() {
   try {
-    await datastore.init({ dataDir: process.env.DATA_DIR });
-    await datastore.refreshAll();
+    // Setup database event handlers
+    database.setupEventHandlers();
+    
+    // Connect to MongoDB
+    await database.connect();
+    console.log('[Server] MongoDB connected successfully');
 
     app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Data directory: ${datastore.state.dataDir}`);
-      console.log(`API endpoints available at http://localhost:${PORT}/api`);
+      console.log(`[Server] Server is running on port ${PORT}`);
+      console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`[Server] API endpoints available at http://localhost:${PORT}/api`);
+      console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
     });
   } catch (err) {
-    console.error('Failed to start server', err);
+    console.error('[Server] Failed to start server:', err);
     process.exit(1);
   }
 }
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n[Server] Received SIGINT, shutting down gracefully...');
+  await database.disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n[Server] Received SIGTERM, shutting down gracefully...');
+  await database.disconnect();
+  process.exit(0);
+});
 
 start();
 

@@ -8,94 +8,87 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
-    maxlength: 5000
+    required: true
   },
   timestamp: {
     type: Date,
     default: Date.now
   },
   metadata: {
-    intent: {
-      type: String,
-      trim: true
-    },
-    entities: {
-      type: Map,
-      of: mongoose.Schema.Types.Mixed
-    },
-    confidence: {
-      type: Number,
-      min: 0,
-      max: 1
-    }
+    intent: String,
+    payload: mongoose.Schema.Types.Mixed
   }
-});
+}, { _id: false });
 
 const chatHistorySchema = new mongoose.Schema({
+  sessionId: {
+    type: String,
+    required: [true, 'Session ID is required'],
+    unique: true,
+    index: true
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
-  },
-  sessionId: {
-    type: String,
-    required: true,
     index: true
   },
   messages: [messageSchema],
-  context: {
-    currentStep: {
-      type: String,
-      trim: true
-    },
-    taskData: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {}
-    },
-    studyPlanData: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {}
-    }
-  },
   status: {
     type: String,
-    enum: ['active', 'completed', 'archived'],
+    enum: ['active', 'archived', 'deleted'],
     default: 'active'
   },
-  summary: {
-    type: String,
-    maxlength: 500
-  },
-  tags: [{
-    type: String,
-    trim: true
-  }],
   lastMessageAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    index: true
   }
 }, {
   timestamps: true
 });
 
-chatHistorySchema.index({ userId: 1, sessionId: 1 });
-chatHistorySchema.index({ userId: 1, status: 1 });
+// Compound indexes
 chatHistorySchema.index({ userId: 1, lastMessageAt: -1 });
+chatHistorySchema.index({ sessionId: 1, status: 1 });
 
-chatHistorySchema.methods.addMessage = function(role, content, metadata = {}) {
+// Method to add a message
+chatHistorySchema.methods.addMessage = function(message) {
   this.messages.push({
-    role,
-    content,
+    role: message.role,
+    content: message.content,
     timestamp: new Date(),
-    metadata
+    metadata: message.metadata || {}
   });
   this.lastMessageAt = new Date();
-  return this.messages[this.messages.length - 1];
+  return this.save();
 };
 
-chatHistorySchema.methods.getRecentMessages = function(limit = 10) {
-  return this.messages.slice(-limit);
+// Method to get recent messages
+chatHistorySchema.methods.getRecentMessages = function(count = 10) {
+  return this.messages.slice(-count);
+};
+
+// Static method to find active sessions
+chatHistorySchema.statics.findActiveSessions = function(userId = null) {
+  const query = { status: 'active' };
+  if (userId) query.userId = userId;
+  return this.find(query).sort({ lastMessageAt: -1 });
+};
+
+// Auto-archive old sessions (older than 30 days with no activity)
+chatHistorySchema.statics.archiveOldSessions = async function() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  return this.updateMany(
+    {
+      status: 'active',
+      lastMessageAt: { $lt: thirtyDaysAgo }
+    },
+    {
+      $set: { status: 'archived' }
+    }
+  );
 };
 
 module.exports = mongoose.model('ChatHistory', chatHistorySchema);
