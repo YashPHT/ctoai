@@ -55,38 +55,132 @@
         </div>
       </header>
       <main class="dashboard-content" role="main" id="main-content">
-        <div class="dashboard-grid" data-assessments-root>
-          <!-- Upcoming Assessments -->
-          <section class="dashboard-card" aria-labelledby="upcomingAssessmentsTitle">
-            <div class="dashboard-card__header">
-              <div class="dashboard-card__title-group">
-                <h2 class="dashboard-card__title" id="upcomingAssessmentsTitle">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"></rect><path d="M7 7h10M7 11h6"></path></svg>
-                  Upcoming Assessments
-                </h2>
-                <span class="dashboard-card__badge" data-assessments-count>—</span>
+        <div class="assessment-layout">
+          <!-- Left Column: Assessments List -->
+          <div class="assessment-main">
+            <section class="dashboard-card" aria-labelledby="upcomingAssessmentsTitle">
+              <div class="dashboard-card__header">
+                <div class="dashboard-card__title-group">
+                  <h2 class="dashboard-card__title" id="upcomingAssessmentsTitle">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"></rect><path d="M7 7h10M7 11h6"></path></svg>
+                    Upcoming Assessments
+                  </h2>
+                  <span class="dashboard-card__badge" data-assessments-count>—</span>
+                </div>
+                <div class="filters-row" role="group" aria-label="Assessment filters">
+                  <label class="sr-only" for="assessment-filter-subject">Subject</label>
+                  <select id="assessment-filter-subject" aria-label="Filter by subject">
+                    <option value="">All subjects</option>
+                  </select>
+                  <label class="sr-only" for="assessment-filter-from">From date</label>
+                  <input id="assessment-filter-from" type="date" aria-label="From date">
+                  <label class="sr-only" for="assessment-filter-to">To date</label>
+                  <input id="assessment-filter-to" type="date" aria-label="To date">
+                  <button class="primary-button" id="add-assessment" aria-label="Add new assessment">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Add Assessment</span>
+                  </button>
+                </div>
               </div>
-              <div class="filters-row" role="group" aria-label="Assessment filters">
-                <label class="sr-only" for="assessment-filter-subject">Subject</label>
-                <select id="assessment-filter-subject" aria-label="Filter by subject">
-                  <option value="">All subjects</option>
-                </select>
-                <label class="sr-only" for="assessment-filter-from">From date</label>
-                <input id="assessment-filter-from" type="date" aria-label="From date">
-                <label class="sr-only" for="assessment-filter-to">To date</label>
-                <input id="assessment-filter-to" type="date" aria-label="To date">
-                <button class="primary-button" id="add-assessment" aria-label="Add new assessment"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Assessment</span></button>
+              <div class="dashboard-card__content">
+                <div id="assessments-error" class="toast toast--error" role="status" hidden></div>
+                <div id="assessments-loading" aria-hidden="true">
+                  <div class="assessment-item skeleton"></div>
+                  <div class="assessment-item skeleton"></div>
+                </div>
+                <div class="assessment-list" id="assessments-list" role="list"></div>
               </div>
-            </div>
-            <div class="dashboard-card__content">
-              <div id="assessments-error" class="toast toast--error" role="status" hidden></div>
-              <div id="assessments-loading" aria-hidden="true">
-                <div class="assessment-item skeleton"></div>
-                <div class="assessment-item skeleton"></div>
+            </section>
+          </div>
+
+          <!-- Right Column: Sidebar -->
+          <div class="assessment-sidebar">
+            <!-- Next Assessment -->
+            <section class="dashboard-card dashboard-card--compact" aria-labelledby="nextAssessmentTitle">
+              <div class="dashboard-card__header">
+                <h3 class="dashboard-card__title" id="nextAssessmentTitle">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  Next Assessment
+                </h3>
               </div>
-              <div class="assessment-list" id="assessments-list" role="list"></div>
-            </div>
-          </section>
+              <div class="dashboard-card__content">
+                <div id="next-assessment-widget" class="next-assessment-widget">
+                  <div class="loading-spinner">Loading...</div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Assessment Stats -->
+            <section class="dashboard-card dashboard-card--compact" aria-labelledby="assessmentStatsTitle">
+              <div class="dashboard-card__header">
+                <h3 class="dashboard-card__title" id="assessmentStatsTitle">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                  Statistics
+                </h3>
+              </div>
+              <div class="dashboard-card__content">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-card__value" id="stat-this-week">—</div>
+                    <div class="stat-card__label">This Week</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-card__value" id="stat-this-month">—</div>
+                    <div class="stat-card__label">This Month</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-card__value" id="stat-total">—</div>
+                    <div class="stat-card__label">Total</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Study Tips -->
+            <section class="dashboard-card dashboard-card--compact" aria-labelledby="studyTipsTitle">
+              <div class="dashboard-card__header">
+                <h3 class="dashboard-card__title" id="studyTipsTitle">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                  Study Tips
+                </h3>
+              </div>
+              <div class="dashboard-card__content">
+                <div class="study-tips">
+                  <div class="study-tip">
+                    <div class="study-tip__icon">📚</div>
+                    <div class="study-tip__text">Start studying at least a week before</div>
+                  </div>
+                  <div class="study-tip">
+                    <div class="study-tip__icon">⏰</div>
+                    <div class="study-tip__text">Break study sessions into 25-min blocks</div>
+                  </div>
+                  <div class="study-tip">
+                    <div class="study-tip__icon">✍️</div>
+                    <div class="study-tip__text">Practice with past papers</div>
+                  </div>
+                  <div class="study-tip">
+                    <div class="study-tip__icon">💤</div>
+                    <div class="study-tip__text">Get 8 hours of sleep before exams</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Subject Breakdown -->
+            <section class="dashboard-card dashboard-card--compact" aria-labelledby="subjectBreakdownTitle">
+              <div class="dashboard-card__header">
+                <h3 class="dashboard-card__title" id="subjectBreakdownTitle">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+                  By Subject
+                </h3>
+              </div>
+              <div class="dashboard-card__content">
+                <div id="subject-breakdown" class="subject-breakdown">
+                  <div class="loading-spinner">Loading...</div>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </main>
     </div>
