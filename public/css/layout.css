@@ -40,10 +40,18 @@
 .sidebar__footer { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-4); }
 .sidebar__action-button { display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); font-weight: 600; transition: background-color var(--transition-fast); }
 .sidebar__action-button:hover { background-color: var(--surface-subtle); }
-.sidebar__user { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); }
-.sidebar__user-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-subtle); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.sidebar__user { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); transition: background-color var(--transition-fast); }
+.sidebar__user:hover { background-color: var(--surface-subtle); }
+.sidebar__user-avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-subtle); color: var(--text-secondary); border: 1px solid var(--border-color); font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+.sidebar__user-avatar.has-image { background: transparent; border: none; }
+.sidebar__user-avatar.has-image img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.sidebar__user-info { display: flex; flex-direction: column; gap: 2px; }
 .sidebar__user-name { font-weight: 600; color: var(--text-primary); }
-.sidebar__user-role { font-size: var(--font-size-xs); color: var(--text-tertiary); }
+.sidebar__user-role { font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: capitalize; }
+.sidebar__logout-button { margin-left: auto; width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--text-tertiary); transition: background-color var(--transition-fast), color var(--transition-fast); }
+.sidebar__logout-button svg { width: 18px; height: 18px; }
+.sidebar__logout-button:hover,
+.sidebar__logout-button:focus-visible { color: var(--danger-color); background-color: var(--surface-subtle); }
 .sidebar__notification-badge { position: relative; top: -2px; right: -2px; }
 
 /* Main content wrapper */
@@ -63,6 +71,16 @@
 .dashboard-header__title { font-size: var(--font-size-xl); font-weight: 700; color: var(--text-primary); }
 .dashboard-header__subtitle { color: var(--text-secondary); font-size: var(--font-size-sm); margin-top: var(--space-1); }
 .dashboard-header__actions { display: flex; align-items: center; gap: var(--space-3); }
+
+.dashboard-header__user { display: flex; align-items: center; gap: var(--space-3); padding-left: var(--space-4); border-left: 1px solid var(--border-color); }
+.dashboard-header__avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-subtle); color: var(--text-secondary); border: 1px solid var(--border-color); display: grid; place-items: center; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+.dashboard-header__avatar.has-image { background: transparent; border: none; }
+.dashboard-header__avatar.has-image img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.dashboard-header__user-info { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.dashboard-header__name { font-weight: 600; color: var(--text-primary); }
+.dashboard-header__logout { font-size: var(--font-size-xs); color: var(--danger-color); background: none; border: none; padding: 0; cursor: pointer; }
+.dashboard-header__logout:hover,
+.dashboard-header__logout:focus-visible { text-decoration: underline; }
 
 /* KPI grid */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-5); margin-bottom: var(--space-6); }
@@ -90,6 +108,7 @@
     .dashboard-header { padding: var(--space-3) var(--space-5); margin: calc(var(--space-5) * -1) calc(var(--space-5) * -1) var(--space-5); }
     .dashboard-header__title-section { display: flex; align-items: center; gap: var(--space-4); }
     .dashboard-header__subtitle { display: none; }
+    .dashboard-header__user { display: none; }
 }
 
 @media (max-width: 768px) {

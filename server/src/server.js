@@ -2,9 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const session = require('express-session');
+const passport = require('passport');
 const database = require('./config/database');
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler');
+const configurePassport = require('./config/passport');
 
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
@@ -22,6 +25,8 @@ const auth = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+configurePassport(passport);
+
 // Trust proxy (for correct rate-limit IPs behind proxies). Accept numeric or boolean-like env.
 const trustProxyEnv = process.env.TRUST_PROXY;
 if (trustProxyEnv) {
@@ -38,6 +43,30 @@ app.use(cors({
 // Body parsers with limits
 app.use(express.json({ limit: process.env.JSON_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: process.env.URLENCODED_LIMIT || '1mb' }));
+
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  console.warn('[Server] SESSION_SECRET is not set. Using a temporary secret for development.');
+}
+
+const parsedSessionMaxAge = parseInt(process.env.SESSION_COOKIE_MAX_AGE || `${24 * 60 * 60 * 1000}`, 10);
+const sessionMaxAge = Number.isNaN(parsedSessionMaxAge) ? 24 * 60 * 60 * 1000 : parsedSessionMaxAge;
+
+app.use(session({
+  name: 'assessli.sid',
+  secret: sessionSecret || 'assessli-insecure-dev-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: sessionMaxAge
+  }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Basic rate limiting
 const limiter = rateLimit({
